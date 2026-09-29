@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>제품 재고 & 위치 관리 시스템</title>
+    <title>실제 창고 랙 기반 스마트 재고 관리 시스템</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts Inter & Noto Sans KR -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -37,146 +37,265 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Industrial Metallic Rack Framework Effects */
+        .rack-frame {
+            background: #1e293b;
+            border: 4px solid #334155;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .rack-post {
+            background: linear-gradient(180deg, #475569 0%, #334155 50%, #1e293b 100%);
+            width: 8px;
+            box-shadow: inset 1px 0 0 rgba(255,255,255,0.2), 2px 0 4px rgba(0,0,0,0.4);
+        }
+
+        .rack-beam {
+            background: linear-gradient(0deg, #334155 0%, #475569 100%);
+            height: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Cell Hover Glow Effects */
+        .rack-cell {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .rack-cell:hover {
+            transform: translateY(-2px) scale(1.02);
+            z-index: 10;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 
-    <!-- Top Header Navigation -->
-    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 border-b border-slate-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="bg-blue-600 p-2 rounded-lg text-white">
-                    <i class="fa-solid me-0 fa-boxes-stacked text-xl"></i>
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl text-white shadow-md">
+                    <i class="fa-solid fa-warehouse text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">스마트 재고 & 위치 관리 시스템</h1>
-                    <p class="text-xs text-slate-400 hidden sm:block">실시간 위치별 재고 및 판매 일자 추적</p>
+                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
+                        스마트 창고 랙(Rack) 대시보드
+                        <span class="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full font-normal">실제 랙 구조 1:1 연동</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">4단 10열 (A1~D10) 실시간 위치 및 수량 추적</p>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-2 sm:space-x-4">
-                <button onclick="refreshDashboard(this)" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-lg text-xs sm:text-sm font-medium transition shadow" title="데이터 및 화면 새로고침">
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="refreshDashboard(this)" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs sm:text-sm font-medium transition shadow-sm" title="새로고침">
                     <i class="fa-solid fa-rotate"></i>
-                    <span>새로고침</span>
+                    <span class="hidden sm:inline">새로고침</span>
                 </button>
 
-                <button onclick="openSyncModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-medium transition shadow">
+                <button onclick="openSyncModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-medium transition shadow-sm">
                     <i class="fa-solid fa-file-excel"></i>
-                    <span class="hidden md:inline">구글 시트 연동 설정</span>
-                    <span class="md:hidden">시트 연동</span>
+                    <span class="hidden md:inline">구글 시트 연동</span>
+                    <span class="md:hidden">시트</span>
                 </button>
 
-                <button onclick="openAddModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-medium transition shadow">
+                <button onclick="openAddModal()" class="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-md">
                     <i class="fa-solid fa-plus"></i>
-                    <span>신규 입고/재고 추가</span>
+                    <span>신규 재고 입고</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- Key Metrics Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium text-slate-500">총 관리 품목 수</p>
-                    <h3 id="statTotalItems" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                    <p class="text-xs font-semibold text-slate-500">총 관리 품목 수</p>
+                    <h3 id="statTotalItems" class="text-2xl font-black text-slate-800 mt-0.5">0</h3>
                 </div>
-                <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                     <i class="fa-solid fa-box text-lg"></i>
                 </div>
             </div>
 
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium text-slate-500">총 수량 (전체 위치)</p>
-                    <h3 id="statTotalStock" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
+                    <p class="text-xs font-semibold text-slate-500">총 보유 수량</p>
+                    <h3 id="statTotalStock" class="text-2xl font-black text-emerald-600 mt-0.5">0</h3>
                 </div>
-                <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <i class="fa-solid fa-cubes text-lg"></i>
                 </div>
             </div>
 
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium text-slate-500">재고 부족 (5개 이하)</p>
-                    <h3 id="statLowStock" class="text-2xl font-bold text-amber-500 mt-1">0</h3>
+                    <p class="text-xs font-semibold text-slate-500">랙 공간 가동률</p>
+                    <h3 id="statOccupancyRate" class="text-2xl font-black text-indigo-600 mt-0.5">0%</h3>
                 </div>
-                <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
                 </div>
             </div>
 
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium text-slate-500">최근 판매 기록 건수</p>
-                    <h3 id="statSoldCount" class="text-2xl font-bold text-purple-600 mt-1">0</h3>
+                    <p class="text-xs font-semibold text-slate-500">재고 부족 경고 (≤5개)</p>
+                    <h3 id="statLowStock" class="text-2xl font-black text-amber-500 mt-0.5">0</h3>
                 </div>
-                <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between col-span-2 lg:col-span-1">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500">최근 출고/판매건</p>
+                    <h3 id="statSoldCount" class="text-2xl font-black text-purple-600 mt-0.5">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                     <i class="fa-solid fa-cart-shopping text-lg"></i>
                 </div>
             </div>
         </div>
 
-        <!-- Location Grid / Rack Visualizer -->
         <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-warehouse text-blue-600"></i>
-                        위치별 재고 점유 현황 (랙/선반)
+                        <i class="fa-solid fa-layer-group text-blue-600"></i>
+                        실제 창고 랙(Rack) 위치별 실시간 재고 맵
                     </h2>
-                    <p class="text-xs text-slate-500">원하시는 위치 버튼을 클릭하면 해당 위치의 모든 제품만 즉시 검색됩니다.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        상단 A단부터 하단 D단까지 각 10개 셀(총 40칸). 원하시는 셀을 클릭하면 해당 위치 데이터만 즉시 조회됩니다.
+                    </p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs px-2 py-1 bg-slate-100 rounded text-slate-600 border border-slate-200 font-medium">
-                        구역 선택
-                    </span>
-                    <select id="zoneFilter" onchange="renderLocationCards()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="ALL">전체 구역 보기</option>
-                        <option value="A">A 구역 (A1, A2...)</option>
-                        <option value="B">B 구역 (B1, B2...)</option>
-                        <option value="C">C 구역 (C1, C2...)</option>
-                    </select>
+
+                <!-- Legend & Controls -->
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <div class="flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 정상(6개+)</span>
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 부족(1~5개)</span>
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 품절(0개)</span>
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> 빈 위치</span>
+                    </div>
+
+                    <button onclick="resetFilters()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition flex items-center gap-1">
+                        <i class="fa-solid fa-arrows-rotate text-xs"></i> 선택 해제
+                    </button>
                 </div>
             </div>
 
-            <div id="locationGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                <!-- Dynamically populated location cards -->
+            <!-- Visual Industrial Rack Framework Diagram -->
+            <div class="overflow-x-auto custom-scrollbar pb-2">
+                <div class="min-w-[860px] bg-slate-950 p-4 rounded-xl border-4 border-slate-800 shadow-inner">
+                    
+                    <!-- Top Rack Overhead Bar -->
+                    <div class="flex justify-between items-center text-slate-400 text-[11px] font-mono px-2 mb-2 border-b border-slate-800 pb-1">
+                        <span><i class="fa-solid fa-industry text-blue-400 mr-1"></i> 메인 랙 프레임 (4TIER - 10COLUMNS)</span>
+                        <span>총 40 슬롯</span>
+                    </div>
+
+                    <!-- 4 Tiers Container (A, B, C, D) -->
+                    <div class="space-y-3 relative">
+
+                        <!-- ROW A (Top Tier) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold text-amber-400 font-mono flex items-center gap-1">
+                                    <i class="fa-solid fa-bars text-amber-400"></i> A단 (최상단)
+                                </span>
+                                <span class="text-[10px] text-slate-500">A1 ~ A10</span>
+                            </div>
+                            <div id="rackRowA" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-full"></div>
+                        </div>
+
+                        <!-- ROW B (2nd Tier) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold text-blue-400 font-mono flex items-center gap-1">
+                                    <i class="fa-solid fa-bars text-blue-400"></i> B단 (2단)
+                                </span>
+                                <span class="text-[10px] text-slate-500">B1 ~ B10</span>
+                            </div>
+                            <div id="rackRowB" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-full"></div>
+                        </div>
+
+                        <!-- ROW C (3rd Tier) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold text-indigo-400 font-mono flex items-center gap-1">
+                                    <i class="fa-solid fa-bars text-indigo-400"></i> C단 (3단)
+                                </span>
+                                <span class="text-[10px] text-slate-500">C1 ~ C10</span>
+                            </div>
+                            <div id="rackRowC" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-full"></div>
+                        </div>
+
+                        <!-- ROW D (Bottom Tier) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold text-emerald-400 font-mono flex items-center gap-1">
+                                    <i class="fa-solid fa-bars text-emerald-400"></i> D단 (하단)
+                                </span>
+                                <span class="text-[10px] text-slate-500">D1 ~ D10</span>
+                            </div>
+                            <div id="rackRowD" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-full"></div>
+                        </div>
+
+                    </div>
+
+                    <!-- Column Numbers Bottom Guide -->
+                    <div class="grid grid-cols-10 gap-1.5 mt-3 pt-2 border-t border-slate-800 text-center text-[10px] font-mono text-slate-400">
+                        <div>COL 1</div>
+                        <div>COL 2</div>
+                        <div>COL 3</div>
+                        <div>COL 4</div>
+                        <div>COL 5</div>
+                        <div>COL 6</div>
+                        <div>COL 7</div>
+                        <div>COL 8</div>
+                        <div>COL 9</div>
+                        <div>COL 10</div>
+                    </div>
+
+                </div>
             </div>
         </section>
 
-        <!-- Search Controls & Data Table -->
         <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <!-- Filter Bar -->
+            <!-- Filter & Search Controls -->
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <!-- Search Input -->
+                <!-- Search Box -->
                 <div class="relative flex-1 flex items-center gap-2">
                     <div class="relative flex-1">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="searchInput" oninput="handleSearch()" placeholder="제품명, 제품코드 또는 위치(예: A1, B2) 검색..." 
-                               class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" id="searchInput" oninput="handleSearch()" placeholder="제품명, 제품코드, 위치(예: A1, B5, D10) 검색..." 
+                               class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm">
                     </div>
-                    <button onclick="resetFilters()" title="검색 및 필터 초기화" class="p-2 border border-slate-300 bg-white hover:bg-slate-100 rounded-lg text-slate-600 transition text-sm">
+                    <button onclick="resetFilters()" title="필터 초기화" class="p-2 border border-slate-300 bg-white hover:bg-slate-100 rounded-lg text-slate-600 transition text-sm">
                         <i class="fa-solid fa-filter-circle-xmark"></i>
                     </button>
                 </div>
 
-                <!-- Status Filters -->
-                <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-                    <button onclick="setFilterStatus('ALL')" id="filterBtnAll" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition shadow-sm whitespace-nowrap">
+                <!-- Quick Filter Buttons -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                    <button onclick="setFilterStatus('ALL')" id="filterBtnAll" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition whitespace-nowrap">
                         전체 보기
                     </button>
                     <button onclick="setFilterStatus('IN_STOCK')" id="filterBtnInStock" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap">
                         재고 보유
                     </button>
                     <button onclick="setFilterStatus('LOW')" id="filterBtnLow" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-amber-600 hover:bg-amber-50 transition whitespace-nowrap">
-                        부족 경고
+                        부족 (1~5개)
                     </button>
-                    <button onclick="setFilterStatus('SOLD_OUT')" id="filterBtnSoldOut" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap">
-                        품절 / 판매완료
+                    <button onclick="setFilterStatus('EMPTY')" id="filterBtnEmpty" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-rose-600 hover:bg-rose-50 transition whitespace-nowrap">
+                        품절/비어있음
                     </button>
                 </div>
             </div>
@@ -186,45 +305,43 @@
                 <table class="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
                         <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                            <th class="p-3.5">보관 위치</th>
+                            <th class="p-3.5">보관 위치 (랙 슬롯)</th>
                             <th class="p-3.5">제품 정보</th>
-                            <th class="p-3.5 text-center">보관 잔여 수량</th>
+                            <th class="p-3.5 text-center">보관 수량</th>
                             <th class="p-3.5">입고 일자</th>
-                            <th class="p-3.5">최근 판매일 / 상태</th>
-                            <th class="p-3.5 text-right">작업 / 관리</th>
+                            <th class="p-3.5">최근 출고/판매일</th>
+                            <th class="p-3.5 text-right">작업</th>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody" class="divide-y divide-slate-100">
-                        <!-- Table rows populated dynamically -->
+                        <!-- Table Rows Populated via JS -->
                     </tbody>
                 </table>
             </div>
 
-            <!-- Empty State -->
+            <!-- Empty Data State -->
             <div id="emptyState" class="hidden p-8 text-center">
                 <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 mb-2">
                     <i class="fa-solid fa-magnifying-glass text-xl"></i>
                 </div>
-                <p class="text-sm font-semibold text-slate-600">일치하는 재고 정보가 없습니다.</p>
-                <p class="text-xs text-slate-400 mt-1">검색어를 변경하거나 필터를 초기화해 보세요.</p>
+                <p class="text-sm font-semibold text-slate-700">검색된 재고 항목이 없습니다.</p>
+                <p class="text-xs text-slate-400 mt-1">검색어를 변경하거나 랙 맵의 다른 위치를 클릭해 보세요.</p>
             </div>
 
-            <!-- Table Footer Stats -->
-            <div class="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
-                <span>표시 중: <strong id="displayedCount" class="text-slate-700">0</strong>개 항목</span>
-                <div class="flex items-center space-x-2">
-                    <button onclick="exportCSV()" class="text-slate-600 hover:text-slate-900 font-medium transition flex items-center gap-1">
-                        <i class="fa-solid fa-download text-xs"></i> CSV 파일 저장
-                    </button>
-                </div>
+            <!-- Table Footer -->
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
+                <span>표시 중인 품목: <strong id="displayedCount" class="text-slate-800">0</strong>개</span>
+                <button onclick="exportCSV()" class="text-slate-700 hover:text-blue-600 font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> CSV 데이터 내보내기
+                </button>
             </div>
         </section>
 
     </main>
 
     <!-- Add / Edit Inventory Modal -->
-    <div id="addModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden transform transition-all">
+    <div id="addModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all">
             <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fa-solid fa-box-archive text-blue-600"></i>
@@ -247,13 +364,14 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">제품 코드</label>
-                        <input type="text" id="formProductCode" placeholder="예: PRD-101" 
+                        <input type="text" id="formProductCode" placeholder="예: PRD-A01" 
                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">보관 위치 <span class="text-red-500">*</span></label>
-                        <input type="text" id="formLocation" required placeholder="예: A1 또는 B2" 
-                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">랙 위치 선택 <span class="text-red-500">*</span></label>
+                        <select id="formLocation" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <!-- Populated with A1~D10 options dynamically -->
+                        </select>
                     </div>
                 </div>
 
@@ -272,7 +390,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">메모 / 특이사항</label>
-                    <textarea id="formNotes" rows="2" placeholder="제품 상태, 규격 등 참고사항" 
+                    <textarea id="formNotes" rows="2" placeholder="보관 상태, 규격 등 특이사항 입력" 
                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                 </div>
 
@@ -289,8 +407,8 @@
     </div>
 
     <!-- Sell / Outbound Record Modal -->
-    <div id="sellModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+    <div id="sellModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-purple-50">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fa-solid fa-cart-shopping text-purple-600"></i>
@@ -311,7 +429,7 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-slate-500">보관 위치:</span>
-                        <span id="sellTargetLoc" class="font-semibold text-blue-600"></span>
+                        <span id="sellTargetLoc" class="font-semibold text-blue-600 font-mono"></span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-slate-500">현재 잔여 수량:</span>
@@ -334,7 +452,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">판매 관련 메모</label>
-                    <input type="text" id="sellNoteInput" placeholder="구매자명, 주문번호 등" 
+                    <input type="text" id="sellNoteInput" placeholder="주문자명, 송장번호 등" 
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
                 </div>
 
@@ -343,20 +461,41 @@
                         취소
                     </button>
                     <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition shadow">
-                        판매 완료 처리
+                        출고/판매 완료
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Google Sheet Synchronization Config Modal -->
-    <div id="syncModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
+    <!-- Custom Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-5 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-slate-800 text-base" id="confirmTitle">삭제 확인</h4>
+                <p class="text-xs text-slate-500 mt-1" id="confirmMessage">정말로 삭제하시겠습니까?</p>
+            </div>
+            <div class="flex gap-2 justify-center pt-2">
+                <button id="confirmCancelBtn" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 text-xs font-semibold hover:bg-slate-50 transition flex-1">
+                    취소
+                </button>
+                <button id="confirmOkBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition shadow flex-1">
+                    삭제하기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Google Sheet Sync Modal -->
+    <div id="syncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
             <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-emerald-50">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fa-solid fa-file-excel text-emerald-600"></i>
-                    <span>구글 시트(Google Sheets) 양방향 자동 연동</span>
+                    <span>구글 시트(Google Sheets) 완벽 양방향 연동 설정</span>
                 </h3>
                 <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -364,231 +503,176 @@
             </div>
 
             <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar text-xs sm:text-sm text-slate-600">
-                <!-- Diagnostic Checklist Alert -->
-                <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 space-y-1 text-xs">
-                    <p class="font-bold flex items-center gap-1.5 text-amber-800">
-                        <i class="fa-solid fa-circle-exclamation text-amber-600"></i>
-                        연동이 안 될 때 3가지 필수 체크리스트 (점검해 보세요)
+                
+                <!-- Step-by-step Setup Instructions -->
+                <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <p class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-blue-600"></i>
+                        구글 앱스 스크립트(Apps Script) 연동 4단계 순서
                     </p>
-                    <ul class="list-disc list-inside space-y-0.5 text-amber-800 pl-1">
-                        <li><strong>URL 주소 확인:</strong> 주소 끝이 <code>/edit</code>가 아닌 <code>/exec</code> 로 끝나야 합니다. (자동 교정 지원)</li>
-                        <li><strong>액세스 권한:</strong> [새 배포] 설정 시 '액세스 권한이 있는 사용자'를 반드시 <strong>[모든 사용자 (Anyone)]</strong>로 설정하셔야 합니다.</li>
-                        <li><strong>코드 업데이트:</strong> 아래 최신 <code>doGet</code> + <code>doPost</code> 코드로 교체 후 <strong>[배포] ➔ [새 배포]</strong>를 해주세요.</li>
-                    </ul>
+                    <ol class="list-decimal list-inside space-y-1 text-xs text-slate-600 leading-relaxed pl-1">
+                        <li>사용하시는 구글 스프레드시트 개설 ➔ <strong>[확장 프로그램]</strong> ➔ <strong>[Apps Script]</strong> 클릭</li>
+                        <li>기존 코드를 모두 지우고 아래 <strong>[앱스 스크립트 코드 복사]</strong> 버튼을 눌러 붙여넣기 후 저장(<kbd class="px-1 bg-slate-200 rounded">Ctrl+S</kbd>)</li>
+                        <li>우측 상단 <strong>[배포]</strong> ➔ <strong>[새 배포]</strong> ➔ 유형 선택: <strong>웹 앱(Web App)</strong> 설정</li>
+                        <li><strong>액세스 권한을 반드시 <span class="text-rose-600 font-bold">"모든 사용자(Anyone)"</span>로 설정</strong> 후 배포된 <code class="bg-amber-100 px-1 rounded text-amber-800">/exec</code> URL 주소를 아래에 입력!</li>
+                    </ol>
                 </div>
 
+                <!-- Google Apps Script Code Copy Block -->
                 <div>
-                    <label class="block font-bold text-slate-800 mb-1">1. Google Apps Script Web App URL 입력</label>
-                    <div class="flex gap-2">
-                        <input type="url" id="sheetScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" 
-                               class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none">
-                        <button onclick="testAndFetchGoogleSheets(true)" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap flex items-center gap-1.5 shadow">
-                            <i class="fa-solid fa-plug-circle-check text-emerald-400"></i>
-                            <span>연동 테스트 & 데이터 동기화</span>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-bold text-slate-800 text-xs">구글 시트에 적용할 스크립트 코드</label>
+                        <button onclick="copyGasCode()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded text-[11px] font-semibold transition flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-copy"></i> Apps Script 코드 복사
                         </button>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-1">배포 URL을 입력 후 [설정 저장 및 연결]을 누르면 브라우저 메모리(LocalStorage)에 안전하게 영구 저장되어 매번 새로 입력할 필요가 없습니다.</p>
-                </div>
-
-                <div class="border-t border-slate-200 pt-3">
-                    <h4 class="font-bold text-slate-800 mb-2">2. 구글 시트 앱 스크립트 통합 코드 (읽기 + 쓰기 지원)</h4>
-                    <p class="text-xs text-slate-500 mb-2">구글 시트 <code>[확장 프로그램] ➔ [Apps Script]</code> 기존 코드를 지우고 아래 최신 코드로 덮어씌워 주세요.</p>
-
-                    <div class="relative">
-                        <pre id="codeBlock" class="bg-slate-900 text-emerald-400 text-xs p-3 rounded-lg overflow-x-auto font-mono max-h-56">
-// 1. 구글 시트 데이터 읽기 (대시보드로 가져오기)
+                    <pre id="gasCodeTemplate" class="p-3 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-lg overflow-x-auto max-h-36 custom-scrollbar border border-slate-800">
 function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  var result = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row[0] && !row[1]) continue;
+    result.push({
+      id: String(row[0] || ''),
+      name: String(row[1] || ''),
+      code: String(row[2] || ''),
+      location: String(row[3] || 'A1'),
+      quantity: Number(row[4] || 0),
+      inboundDate: row[5] ? formatDate(row[5]) : '',
+      soldDate: row[6] ? formatDate(row[6]) : '',
+      notes: String(row[7] || '')
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = sheet.getDataRange().getValues();
-    var result = [];
-    if (data.length > 1) {
-      for (var i = 1; i < data.length; i++) {
-        var row = data[i];
-        if (!row[0] && !row[1]) continue;
-        result.push({
-          id: String(row[0] || ''),
-          name: String(row[1] || ''),
-          code: String(row[2] || ''),
-          location: String(row[3] || ''),
-          quantity: Number(row[4]) || 0,
-          inboundDate: row[5] ? formatDate(row[5]) : '',
-          soldDate: row[6] ? formatDate(row[6]) : '-',
-          notes: String(row[7] || '')
-        });
-      }
+    var contents = JSON.parse(e.postData.contents);
+    sheet.clear();
+    sheet.appendRow(['ID', '제품명', '제품코드', '보관위치', '수량', '입고일자', '최근출고일', '메모']);
+    for (var i = 0; i < contents.length; i++) {
+      var item = contents[i];
+      sheet.appendRow([
+        item.id || '',
+        item.name || '',
+        item.code || '',
+        item.location || '',
+        item.quantity || 0,
+        item.inboundDate || '',
+        item.soldDate || '',
+        item.notes || ''
+      ]);
     }
-    return ContentService.createTextOutput(JSON.stringify({ result: "success", data: result }))
+    return ContentService.createTextOutput(JSON.stringify({status: 'success'}))
       .setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ result: "error", message: err.toString() }))
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({status: 'error', message: err.toString()}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function formatDate(d) {
   if (d instanceof Date) {
-    var y = d.getFullYear();
-    var m = ("0" + (d.getMonth() + 1)).slice(-2);
-    var day = ("0" + d.getDate()).slice(-2);
-    return y + "-" + m + "-" + day;
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
   }
   return String(d);
-}
-
-// 2. 구글 시트 데이터 쓰기 및 수정 (대시보드에서 전송)
-function doPost(e) {
-  try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return ContentService.createTextOutput(JSON.stringify({
-        result: "notice", 
-        message: "웹 대시보드에서 보낸 데이터가 없습니다."
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
-    
-    // 첫 줄 헤더 자동 생성
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["제품ID", "제품명", "제품코드", "위치", "잔여수량", "입고일", "최근판매일", "메모"]);
-    }
-    
-    // 기존 데이터 존재 시 행 수정, 없으면 새 행 추가
-    var allRows = sheet.getDataRange().getValues();
-    var rowIndexToUpdate = -1;
-    for (var i = 1; i < allRows.length; i++) {
-      if (allRows[i][0] && String(allRows[i][0]) === String(data.id)) {
-        rowIndexToUpdate = i + 1;
-        break;
-      }
-    }
-
-    var rowValues = [
-      data.id || '', 
-      data.name || '', 
-      data.code || '', 
-      data.location || '', 
-      data.quantity !== undefined ? data.quantity : 0, 
-      data.inboundDate || '', 
-      data.soldDate || '-', 
-      data.notes || ''
-    ];
-
-    if (rowIndexToUpdate > 0) {
-      sheet.getRange(rowIndexToUpdate, 1, 1, rowValues.length).setValues([rowValues]);
-    } else {
-      sheet.appendRow(rowValues);
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({result: "success"}))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({result: "error", message: err.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
 }</pre>
-                        <button onclick="copyScriptCode()" class="absolute top-2 right-2 px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition flex items-center gap-1 shadow">
-                            <i class="fa-regular fa-copy"></i> 코드 복사
-                        </button>
-                    </div>
-
-                    <p class="text-xs text-slate-500 mt-2">
-                        3. 우측 상단 <strong>[배포] ➔ [새 배포]</strong> 선택 후, 유형: <strong>웹 앱</strong>, 액세스 권한: <strong>'모든 사용자(Anyone)'</strong>로 선택 후 배포하여 생성된 URL을 위 입력란에 넣어주세요.
-                    </p>
                 </div>
+
+                <!-- Web App URL Input field -->
+                <div class="space-y-1.5 pt-1">
+                    <label class="block font-bold text-slate-800 text-xs">배포된 Web App URL 주소 입력 <span class="text-rose-500">*</span></label>
+                    <input type="url" id="sheetScriptUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" 
+                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+
+                <!-- Sync Action Buttons -->
+                <div class="grid grid-cols-2 gap-2.5 pt-2">
+                    <button onclick="testAndFetchGoogleSheets(true)" class="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                        시트에서 불러오기 (시트 ➔ 앱)
+                    </button>
+
+                    <button onclick="pushToGoogleSheets(true)" class="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        시트로 저장하기 (앱 ➔ 시트)
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1 text-xs text-slate-600">
+                    <input type="checkbox" id="autoSyncCheck" onchange="toggleAutoSync(this)" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4">
+                    <label for="autoSyncCheck" class="cursor-pointer font-medium">재고 변경 시 구글 시트에 자동으로 실시간 저장하기</label>
+                </div>
+
             </div>
 
             <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
-                <button onclick="closeSyncModal()" class="px-4 py-2 border border-slate-300 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-100 transition">
+                <button onclick="closeSyncModal()" class="px-4 py-2 border border-slate-300 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-100 transition">
                     닫기
                 </button>
-                <button onclick="saveSyncConfig()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition shadow">
-                    설정 저장하기
+                <button onclick="saveSyncConfig()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition shadow">
+                    설정 저장
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification Container -->
+    <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
         <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
         <span id="toastMessage" class="text-xs sm:text-sm font-medium"></span>
     </div>
 
     <script>
-        // Sample Initial Data based on Google Sheet structure
+        // Generate Rack Cell Codes (A1~A10, B1~B10, C1~C10, D1~D10)
+        const RACK_ROWS = ['A', 'B', 'C', 'D'];
+        const RACK_COLS = Array.from({length: 10}, (_, i) => i + 1); // 1 to 10
+        const ALL_RACK_LOCATIONS = [];
+
+        RACK_ROWS.forEach(r => {
+            RACK_COLS.forEach(c => {
+                ALL_RACK_LOCATIONS.push(`${r}${c}`);
+            });
+        });
+
+        // Initial Mock Data corresponding to 4-tier rack structure
         const initialInventory = [
-            {
-                id: 'INV-1001',
-                code: 'PRD-A01',
-                name: 'A 제품 (프리미엄 세트)',
-                location: 'A1',
-                quantity: 12,
-                inboundDate: '2026-09-26',
-                soldDate: null,
-                notes: '정상 입고 검수 완료'
-            },
-            {
-                id: 'INV-1002',
-                code: 'PRD-A02',
-                name: 'A 제품 (스탠다드)',
-                location: 'A1',
-                quantity: 3,
-                inboundDate: '2026-09-25',
-                soldDate: '2026-09-27',
-                notes: '잔여 수량 소량 남음'
-            },
-            {
-                id: 'INV-1003',
-                code: 'PRD-A03',
-                name: 'B 제품 (액세서리 키트)',
-                location: 'A2',
-                quantity: 25,
-                inboundDate: '2026-09-20',
-                soldDate: null,
-                notes: 'A2 선반 상단 보관'
-            },
-            {
-                id: 'INV-1004',
-                code: 'PRD-B01',
-                name: 'C 제품 (모듈형 디바이스)',
-                location: 'B1',
-                quantity: 8,
-                inboundDate: '2026-09-22',
-                soldDate: '2026-09-26',
-                notes: '2개 출고 완료'
-            },
-            {
-                id: 'INV-1005',
-                code: 'PRD-B02',
-                name: 'D 제품 (연결 케이블)',
-                location: 'B2',
-                quantity: 0,
-                inboundDate: '2026-09-15',
-                soldDate: '2026-09-28',
-                notes: '전량 판매 완료 (재입고 예정)'
-            },
-            {
-                id: 'INV-1006',
-                code: 'PRD-C01',
-                name: 'E 제품 (보호 케이스)',
-                location: 'C1',
-                quantity: 40,
-                inboundDate: '2026-09-24',
-                soldDate: null,
-                notes: '신규 박스 보관'
-            }
+            { id: 'INV-1001', code: 'PRD-A01', name: 'A 제품 (프리미엄 세트)', location: 'A1', quantity: 12, inboundDate: '2026-09-26', soldDate: null, notes: '정상 입고 검수 완료' },
+            { id: 'INV-1002', code: 'PRD-A02', name: 'A 제품 (스탠다드)', location: 'A2', quantity: 3, inboundDate: '2026-09-25', soldDate: '2026-09-27', notes: '잔여 소량 남음' },
+            { id: 'INV-1003', code: 'PRD-A03', name: 'B 제품 (액세서리 키트)', location: 'A5', quantity: 25, inboundDate: '2026-09-20', soldDate: null, notes: '상단 박스 보관' },
+            { id: 'INV-1004', code: 'PRD-B01', name: 'C 제품 (모듈형 디바이스)', location: 'B1', quantity: 8, inboundDate: '2026-09-22', soldDate: '2026-09-26', notes: '2개 출고 완료' },
+            { id: 'INV-1005', code: 'PRD-B02', name: 'D 제품 (연결 케이블)', location: 'B3', quantity: 0, inboundDate: '2026-09-15', soldDate: '2026-09-28', notes: '품절 (재입고 예정)' },
+            { id: 'INV-1006', code: 'PRD-B07', name: 'E 제품 (보호 케이스)', location: 'B7', quantity: 15, inboundDate: '2026-09-24', soldDate: null, notes: '신규 박스 보관' },
+            { id: 'INV-1007', code: 'PRD-C01', name: 'F 제품 (전원 어댑터)', location: 'C4', quantity: 18, inboundDate: '2026-09-21', soldDate: null, notes: 'C단 중앙 보관' },
+            { id: 'INV-1008', code: 'PRD-D02', name: 'G 제품 (중량 부품 세트)', location: 'D2', quantity: 45, inboundDate: '2026-09-19', soldDate: null, notes: '하단 중량물 파렛트' },
+            { id: 'INV-1009', code: 'PRD-D09', name: 'H 제품 (설치 도구함)', location: 'D9', quantity: 4, inboundDate: '2026-09-23', soldDate: '2026-09-29', notes: '수량 부족' }
         ];
 
-        // State Management
+        // State variables
         let inventoryList = [];
         let currentFilterStatus = 'ALL';
+        let currentSelectedLocation = null;
         let googleScriptUrl = '';
+        let isAutoSyncEnabled = false;
 
         window.addEventListener('DOMContentLoaded', () => {
-            // 1. LocalStorage에서 로컬 백업 데이터 가져오기
-            const savedData = localStorage.getItem('app_inventory_data');
+            // Populate Location Select Options
+            const locationSelect = document.getElementById('formLocation');
+            locationSelect.innerHTML = '';
+            ALL_RACK_LOCATIONS.forEach(loc => {
+                const opt = document.createElement('option');
+                opt.value = loc;
+                opt.textContent = `${loc} 위치`;
+                locationSelect.appendChild(opt);
+            });
+
+            // Load Data from LocalStorage
+            const savedData = localStorage.getItem('app_rack_inventory');
             if (savedData) {
                 try {
                     inventoryList = JSON.parse(savedData);
@@ -600,18 +684,15 @@ function doPost(e) {
                 saveToLocalStorage();
             }
 
-            // 2. [자동 저장 & 자동 로드] 저장된 연동 URL이 존재하면 읽어옴
             googleScriptUrl = localStorage.getItem('app_google_script_url') || '';
             if (googleScriptUrl) {
-                googleScriptUrl = fixScriptUrl(googleScriptUrl);
                 document.getElementById('sheetScriptUrl').value = googleScriptUrl;
-                
-                // [접속 시 자동 데이터 동기화 (Auto Fetch)]
-                // 사이트에 들어오는 순간 구글 시트의 최신 재고 목록을 자동으로 읽어와 대시보드 화면 갱신
-                testAndFetchGoogleSheets(false);
             }
 
-            // Set default date picker to today
+            isAutoSyncEnabled = localStorage.getItem('app_auto_sync') === 'true';
+            document.getElementById('autoSyncCheck').checked = isAutoSyncEnabled;
+
+            // Set Default Dates
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('formInboundDate').value = today;
             document.getElementById('sellDateInput').value = today;
@@ -619,145 +700,120 @@ function doPost(e) {
             renderDashboard();
         });
 
-        // Helper to fix Google Script URL format (/edit -> /exec)
-        function fixScriptUrl(url) {
-            if (!url) return '';
-            url = url.trim();
-            if (url.includes('/edit')) {
-                url = url.split('/edit')[0] + '/exec';
-            }
-            return url;
-        }
-
-        // Save State to LocalStorage
         function saveToLocalStorage() {
-            localStorage.setItem('app_inventory_data', JSON.stringify(inventoryList));
+            localStorage.setItem('app_rack_inventory', JSON.stringify(inventoryList));
+            if (isAutoSyncEnabled && googleScriptUrl) {
+                pushToGoogleSheets(false);
+            }
         }
 
-        // Test connection and fetch live data from Google Sheets (Auto Fetch Support)
-        function testAndFetchGoogleSheets(showNotification = true) {
-            let url = document.getElementById('sheetScriptUrl').value.trim();
-            url = fixScriptUrl(url);
-            document.getElementById('sheetScriptUrl').value = url;
-
-            if (!url) {
-                if (showNotification) showToast('구글 앱 스크립트 Web App URL을 입력해 주세요.', 'warning');
-                return;
+        function toggleAutoSync(chk) {
+            isAutoSyncEnabled = chk.checked;
+            localStorage.setItem('app_auto_sync', isAutoSyncEnabled ? 'true' : 'false');
+            if (isAutoSyncEnabled) {
+                showToast('실시간 자동 동기화가 활성화되었습니다.');
             }
+        }
 
-            if (!url.includes('/exec')) {
-                if (showNotification) showToast('URL 형태를 확인해 주세요. (끝이 /exec 로 끝나야 합니다)', 'error');
-                return;
-            }
+        function renderVisualRack() {
+            const rows = {
+                'A': document.getElementById('rackRowA'),
+                'B': document.getElementById('rackRowB'),
+                'C': document.getElementById('rackRowC'),
+                'D': document.getElementById('rackRowD')
+            };
 
-            if (showNotification) showToast('구글 시트에 연결하여 최신 데이터를 읽어오는 중...', 'info');
+            // Clear existing cells
+            Object.values(rows).forEach(r => r.innerHTML = '');
 
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.result === 'success' && Array.isArray(data.data)) {
-                        if (data.data.length > 0) {
-                            inventoryList = data.data;
-                            saveToLocalStorage();
-                            renderDashboard();
-                            if (showNotification) {
-                                showToast(`연동 성공! 구글 시트에서 ${data.data.length}개의 최신 재고 목록을 가져왔습니다.`, 'success');
-                            }
+            // Create location mapping
+            const locMap = {};
+            inventoryList.forEach(item => {
+                const loc = (item.location || '').toUpperCase();
+                if (!locMap[loc]) locMap[loc] = [];
+                locMap[loc].push(item);
+            });
+
+            RACK_ROWS.forEach(rowLetter => {
+                const container = rows[rowLetter];
+
+                for (let c = 1; c <= 10; c++) {
+                    const cellLoc = `${rowLetter}${c}`;
+                    const itemsInCell = locMap[cellLoc] || [];
+                    const totalQty = itemsInCell.reduce((acc, curr) => acc + Number(curr.quantity), 0);
+                    const isSelected = currentSelectedLocation === cellLoc;
+
+                    // Color status calculation
+                    let bgClass = "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500";
+                    let statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>`;
+
+                    if (itemsInCell.length > 0) {
+                        if (totalQty === 0) {
+                            bgClass = "bg-rose-950/50 border-rose-800/80 text-rose-300 hover:border-rose-500";
+                            statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>`;
+                        } else if (totalQty <= 5) {
+                            bgClass = "bg-amber-950/50 border-amber-700/80 text-amber-200 hover:border-amber-400";
+                            statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>`;
                         } else {
-                            if (showNotification) {
-                                showToast('구글 시트 연결 성공! (시트에 등록된 데이터 행이 없습니다)', 'info');
-                            }
-                        }
-                    } else {
-                        if (showNotification) {
-                            showToast('구글 시트 응답 실패: 앱 스크립트 코드를 최신 코드로 복사했는지 확인하세요.', 'warning');
+                            bgClass = "bg-emerald-950/40 border-emerald-700/80 text-emerald-200 hover:border-emerald-400";
+                            statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>`;
                         }
                     }
-                })
-                .catch(err => {
-                    console.error('Google Sheets Fetch Error:', err);
-                    if (showNotification) {
-                        showToast('연동 실패! 배포 설정 시 [액세스 권한: 모든 사용자]로 하셨는지 확인해 주세요.', 'error');
+
+                    if (isSelected) {
+                        bgClass += " ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900 scale-105 z-20";
                     }
-                });
-        }
 
-        // [자동 저장 (LocalStorage)] - 설정 저장 버튼 누르면 브라우저 메모리에 영구 보관
-        function saveSyncConfig() {
-            let url = document.getElementById('sheetScriptUrl').value.trim();
-            url = fixScriptUrl(url);
-            googleScriptUrl = url;
-            
-            // LocalStorage에 연동 URL 저장
-            localStorage.setItem('app_google_script_url', url);
-            
-            if (url) {
-                testAndFetchGoogleSheets(true);
-            } else {
-                showToast('연동 URL이 해제되었습니다.', 'info');
-            }
-            closeSyncModal();
-        }
+                    const cellHtml = `
+                        <button onclick="handleRackCellClick('${cellLoc}')" 
+                                title="${cellLoc} 위치 - ${itemsInCell.length > 0 ? itemsInCell[0].name + ' 등 (' + totalQty + '개)' : '비어있음 (클릭하여 입고)'}"
+                                class="rack-cell ${bgClass} border rounded-lg p-1.5 flex flex-col justify-between items-center text-center h-16 relative overflow-hidden group">
+                            <div class="flex items-center justify-between w-full text-[10px] font-mono font-bold">
+                                <span class="text-slate-300">${cellLoc}</span>
+                                ${statusDot}
+                            </div>
+                            <div class="my-auto">
+                                ${itemsInCell.length > 0 ? `
+                                    <span class="text-xs font-black font-mono tracking-tight">${totalQty}<span class="text-[9px] font-normal opacity-70">개</span></span>
+                                ` : `
+                                    <span class="text-[10px] text-slate-600 group-hover:text-slate-400 transition">+입고</span>
+                                `}
+                            </div>
+                            ${itemsInCell.length > 0 ? `
+                                <div class="text-[9px] truncate w-full font-sans opacity-80 scale-90">
+                                    ${escapeHtml(itemsInCell[0].name)}
+                                </div>
+                            ` : ''}
+                        </button>
+                    `;
 
-        // [입력/수정/판매 시 실시간 동기화] - 구글 시트로 데이터 전송
-        function syncToGoogleSheets(itemData) {
-            if (!googleScriptUrl) return;
-            const url = fixScriptUrl(googleScriptUrl);
-
-            fetch(url, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                },
-                body: JSON.stringify(itemData)
-            }).then(() => {
-                showToast('구글 시트로 최신 데이터가 자동 전송되었습니다.', 'success');
-            }).catch(err => {
-                console.error('Google Sheets Sync Error:', err);
-                showToast('구글 시트 전송 중 오류가 발생했습니다.', 'error');
+                    container.innerHTML += cellHtml;
+                }
             });
         }
 
-        function refreshDashboard(btnElement) {
-            let icon = null;
-            if (btnElement) {
-                icon = btnElement.querySelector('i');
-                if (icon) icon.classList.add('animate-spin');
-            }
-
-            if (googleScriptUrl) {
-                testAndFetchGoogleSheets(false);
-            }
-
-            const savedData = localStorage.getItem('app_inventory_data');
-            if (savedData) {
-                try {
-                    inventoryList = JSON.parse(savedData);
-                } catch(e) {
-                    console.error('Data parse error', e);
+        function handleRackCellClick(locCode) {
+            if (currentSelectedLocation === locCode) {
+                currentSelectedLocation = null;
+                document.getElementById('searchInput').value = '';
+                showToast('위치 필터가 해제되었습니다.', 'info');
+            } else {
+                currentSelectedLocation = locCode;
+                document.getElementById('searchInput').value = locCode;
+                
+                const hasItem = inventoryList.some(i => i.location.toUpperCase() === locCode);
+                if (!hasItem) {
+                    showToast(`'${locCode}' 위치는 비어 있습니다. [신규 재고 입고] 버튼을 누르면 해당 위치로 신규 등록됩니다.`, 'info');
+                } else {
+                    showToast(`'${locCode}' 위치 재고만 조회 중입니다.`, 'info');
                 }
             }
-
             renderDashboard();
-
-            setTimeout(() => {
-                if (icon) icon.classList.remove('animate-spin');
-                showToast('데이터가 최신 상태로 새로고침되었습니다.', 'info');
-            }, 300);
-        }
-
-        // Reset Search Filters
-        function resetFilters() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('zoneFilter').value = 'ALL';
-            setFilterStatus('ALL');
-            showToast('검색 및 필터 조건이 초기화되었습니다.', 'info');
         }
 
         function renderDashboard() {
             renderMetrics();
-            renderLocationCards();
+            renderVisualRack();
             renderTable();
         }
 
@@ -767,81 +823,15 @@ function doPost(e) {
             const lowStockCount = inventoryList.filter(item => item.quantity > 0 && item.quantity <= 5).length;
             const soldCount = inventoryList.filter(item => item.soldDate && item.soldDate !== '-').length;
 
+            const occupiedSlotsSet = new Set(inventoryList.map(i => i.location.toUpperCase()));
+            const occupiedCount = occupiedSlotsSet.size;
+            const occupancyRate = Math.round((occupiedCount / ALL_RACK_LOCATIONS.length) * 100);
+
             document.getElementById('statTotalItems').textContent = totalItems;
             document.getElementById('statTotalStock').textContent = totalStock.toLocaleString();
+            document.getElementById('statOccupancyRate').textContent = `${occupancyRate}% (${occupiedCount}/40)`;
             document.getElementById('statLowStock').textContent = lowStockCount;
             document.getElementById('statSoldCount').textContent = soldCount;
-        }
-
-        function renderLocationCards() {
-            const gridContainer = document.getElementById('locationGrid');
-            const zoneFilter = document.getElementById('zoneFilter').value;
-
-            const locationMap = {};
-
-            inventoryList.forEach(item => {
-                const loc = (item.location || '미지정').toUpperCase();
-                if (!locationMap[loc]) {
-                    locationMap[loc] = {
-                        count: 0,
-                        totalQuantity: 0,
-                        items: []
-                    };
-                }
-                locationMap[loc].count += 1;
-                locationMap[loc].totalQuantity += Number(item.quantity);
-                locationMap[loc].items.push(item);
-            });
-
-            const sortedLocations = Object.keys(locationMap).sort();
-            gridContainer.innerHTML = '';
-
-            if (sortedLocations.length === 0) {
-                gridContainer.innerHTML = `<p class="col-span-full text-xs text-slate-400 py-4 text-center">등록된 위치 정보가 없습니다.</p>`;
-                return;
-            }
-
-            sortedLocations.forEach(loc => {
-                if (zoneFilter !== 'ALL' && !loc.startsWith(zoneFilter)) {
-                    return;
-                }
-
-                const data = locationMap[loc];
-                const hasStock = data.totalQuantity > 0;
-
-                const cardHtml = `
-                    <button onclick="filterByLocation('${loc}')" 
-                            class="p-3 rounded-xl border text-left transition-all duration-200 hover:shadow-md relative overflow-hidden ${
-                                hasStock 
-                                ? 'bg-gradient-to-br from-white to-blue-50/30 border-blue-200 hover:border-blue-400' 
-                                : 'bg-slate-50 border-slate-200 opacity-60'
-                            }">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                                <i class="fa-solid fa-location-dot text-xs text-blue-600"></i> ${loc}
-                            </span>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                hasStock ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
-                            }">
-                                ${data.count}종 품목
-                            </span>
-                        </div>
-                        <div class="mt-2">
-                            <p class="text-[11px] text-slate-500">위치 총 수량</p>
-                            <p class="text-base font-extrabold ${hasStock ? 'text-blue-700' : 'text-slate-400'}">
-                                ${data.totalQuantity} <span class="text-xs font-normal text-slate-500">개</span>
-                            </p>
-                        </div>
-                    </button>
-                `;
-                gridContainer.innerHTML += cardHtml;
-            });
-        }
-
-        function filterByLocation(locCode) {
-            document.getElementById('searchInput').value = locCode;
-            handleSearch();
-            showToast(`'${locCode}' 위치에 보관 중인 품목을 검색합니다.`, 'info');
         }
 
         function renderTable() {
@@ -860,8 +850,8 @@ function doPost(e) {
                     matchesStatus = item.quantity > 0;
                 } else if (currentFilterStatus === 'LOW') {
                     matchesStatus = item.quantity > 0 && item.quantity <= 5;
-                } else if (currentFilterStatus === 'SOLD_OUT') {
-                    matchesStatus = item.quantity === 0 || (item.soldDate && item.soldDate !== '-');
+                } else if (currentFilterStatus === 'EMPTY') {
+                    matchesStatus = item.quantity === 0;
                 }
 
                 return matchesSearch && matchesStatus;
@@ -883,7 +873,7 @@ function doPost(e) {
                 let stockText = `${item.quantity} 개`;
 
                 if (isSoldOut) {
-                    stockBadgeClass = 'bg-slate-200 text-slate-600';
+                    stockBadgeClass = 'bg-rose-100 text-rose-800 font-bold';
                     stockText = '품절 (0개)';
                 } else if (isLowStock) {
                     stockBadgeClass = 'bg-amber-100 text-amber-800 font-bold';
@@ -893,15 +883,15 @@ function doPost(e) {
                 const rowHtml = `
                     <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                         <td class="p-3.5 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                <i class="fa-solid fa-location-dot mr-1"></i> ${escapeHtml(item.location)}
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black font-mono bg-slate-900 text-blue-300 border border-slate-700 shadow-sm">
+                                <i class="fa-solid fa-location-dot text-blue-400 mr-1.5"></i> ${escapeHtml(item.location.toUpperCase())}
                             </span>
                         </td>
                         <td class="p-3.5">
-                            <div class="font-bold text-slate-800">${escapeHtml(item.name)}</div>
+                            <div class="font-bold text-slate-800 text-sm">${escapeHtml(item.name)}</div>
                             <div class="text-xs text-slate-400 font-mono flex items-center gap-2 mt-0.5">
                                 ${item.code ? `<span>코드: ${escapeHtml(item.code)}</span>` : ''}
-                                ${item.notes ? `<span class="text-slate-500 line-clamp-1"><i class="fa-regular fa-comment mr-0.5"></i>${escapeHtml(item.notes)}</span>` : ''}
+                                ${item.notes ? `<span class="text-slate-500 truncate max-w-xs"><i class="fa-regular fa-comment mr-0.5"></i>${escapeHtml(item.notes)}</span>` : ''}
                             </div>
                         </td>
                         <td class="p-3.5 text-center whitespace-nowrap">
@@ -913,9 +903,9 @@ function doPost(e) {
                             <i class="fa-regular fa-calendar-check text-slate-400 mr-1"></i>
                             ${item.inboundDate || '-'}
                         </td>
-                        <td class="p-3.5 whitespace-nowrap text-xs">
+                        <td class="p-3.5 whitespace-nowrap text-xs font-mono">
                             ${item.soldDate && item.soldDate !== '-' 
-                                ? `<span class="text-purple-700 font-semibold font-mono"><i class="fa-solid fa-cart-check mr-1"></i>${item.soldDate} 판매</span>` 
+                                ? `<span class="text-purple-700 font-semibold"><i class="fa-solid fa-cart-check mr-1"></i>${item.soldDate}</span>` 
                                 : `<span class="text-slate-400">-</span>`
                             }
                         </td>
@@ -929,7 +919,7 @@ function doPost(e) {
                                         class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
-                                <button onclick="deleteProduct('${item.id}')" title="삭제" 
+                                <button onclick="askDeleteProduct('${item.id}')" title="삭제" 
                                         class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
@@ -944,44 +934,61 @@ function doPost(e) {
         }
 
         function handleSearch() {
-            renderTable();
+            const inputVal = document.getElementById('searchInput').value.trim().toUpperCase();
+            if (ALL_RACK_LOCATIONS.includes(inputVal)) {
+                currentSelectedLocation = inputVal;
+            } else {
+                currentSelectedLocation = null;
+            }
+            renderDashboard();
         }
 
         function setFilterStatus(status) {
             currentFilterStatus = status;
 
-            const buttons = {
+            const btns = {
                 'ALL': 'filterBtnAll',
                 'IN_STOCK': 'filterBtnInStock',
                 'LOW': 'filterBtnLow',
-                'SOLD_OUT': 'filterBtnSoldOut'
+                'EMPTY': 'filterBtnEmpty'
             };
 
-            Object.keys(buttons).forEach(key => {
-                const btn = document.getElementById(buttons[key]);
-                if (key === status) {
-                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition shadow-sm whitespace-nowrap";
+            Object.keys(btns).forEach(k => {
+                const b = document.getElementById(btns[k]);
+                if (k === status) {
+                    b.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition whitespace-nowrap shadow-sm";
                 } else {
-                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap";
+                    b.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap";
                 }
             });
 
             renderTable();
         }
 
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            currentSelectedLocation = null;
+            setFilterStatus('ALL');
+            showToast('모든 검색 필터가 초기화되었습니다.', 'info');
+        }
+
         function openAddModal() {
             document.getElementById('inventoryForm').reset();
             document.getElementById('formProductId').value = '';
             document.getElementById('modalTitle').textContent = '신규 재고 등록 / 입고';
+            
+            if (currentSelectedLocation) {
+                document.getElementById('formLocation').value = currentSelectedLocation;
+            } else {
+                document.getElementById('formLocation').value = 'A1';
+            }
+
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('formInboundDate').value = today;
             document.getElementById('addModal').classList.remove('hidden');
         }
 
-        function closeAddModal() {
-            document.getElementById('addModal').classList.add('hidden');
-            document.getElementById('inventoryForm').reset();
-        }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
 
         function openEditModal(id) {
             const item = inventoryList.find(p => p.id === id);
@@ -990,7 +997,7 @@ function doPost(e) {
             document.getElementById('formProductId').value = item.id;
             document.getElementById('formProductName').value = item.name;
             document.getElementById('formProductCode').value = item.code || '';
-            document.getElementById('formLocation').value = item.location;
+            document.getElementById('formLocation').value = item.location.toUpperCase();
             document.getElementById('formQuantity').value = item.quantity;
             document.getElementById('formInboundDate').value = item.inboundDate;
             document.getElementById('formNotes').value = item.notes || '';
@@ -999,35 +1006,32 @@ function doPost(e) {
             document.getElementById('addModal').classList.remove('hidden');
         }
 
-        // [입력/수정 시 실시간 동기화 및 입력창 자동 비우기]
         function handleFormSubmit(e) {
             e.preventDefault();
 
             const id = document.getElementById('formProductId').value;
             const name = document.getElementById('formProductName').value.trim();
             const code = document.getElementById('formProductCode').value.trim();
-            const location = document.getElementById('formLocation').value.trim().toUpperCase();
+            const location = document.getElementById('formLocation').value.toUpperCase();
             const quantity = parseInt(document.getElementById('formQuantity').value, 10);
             const inboundDate = document.getElementById('formInboundDate').value;
             const notes = document.getElementById('formNotes').value.trim();
 
-            let targetItem = null;
-
             if (id) {
-                targetItem = inventoryList.find(p => p.id === id);
-                if (targetItem) {
-                    targetItem.name = name;
-                    targetItem.code = code;
-                    targetItem.location = location;
-                    targetItem.quantity = quantity;
-                    targetItem.inboundDate = inboundDate;
-                    targetItem.notes = notes;
-                    showToast('재고 정보가 성공적으로 수정되었습니다.');
+                const target = inventoryList.find(p => p.id === id);
+                if (target) {
+                    target.name = name;
+                    target.code = code;
+                    target.location = location;
+                    target.quantity = quantity;
+                    target.inboundDate = inboundDate;
+                    target.notes = notes;
+                    showToast('재고 정보가 수정되었습니다.');
                 }
             } else {
-                targetItem = {
+                const newItem = {
                     id: 'INV-' + Date.now().toString().slice(-5),
-                    code: code || ('PRD-' + Math.floor(100 + Math.random() * 900)),
+                    code: code || ('PRD-' + location + '-' + Math.floor(100 + Math.random() * 900)),
                     name: name,
                     location: location,
                     quantity: quantity,
@@ -1035,21 +1039,13 @@ function doPost(e) {
                     soldDate: null,
                     notes: notes
                 };
-                inventoryList.unshift(targetItem);
-                showToast(`신규 재고 '${name}'이(가) ${location} 위치에 등록되었습니다.`);
+                inventoryList.unshift(newItem);
+                showToast(`'${name}' 제품이 랙 [${location}] 위치에 저장되었습니다.`);
             }
 
             saveToLocalStorage();
             renderDashboard();
-
-            // [입력창 비우기] 폼 자동 리셋 및 모달 닫기
-            document.getElementById('inventoryForm').reset();
             closeAddModal();
-
-            // [실시간 구글 시트 동기화]
-            if (googleScriptUrl && targetItem) {
-                syncToGoogleSheets(targetItem);
-            }
         }
 
         function openSellModal(id) {
@@ -1057,29 +1053,22 @@ function doPost(e) {
             if (!item) return;
 
             if (item.quantity <= 0) {
-                showToast('이미 잔여 수량이 0인 품목입니다.', 'warning');
+                showToast('잔여 수량이 0인 품목입니다.', 'warning');
                 return;
             }
 
             document.getElementById('sellProductId').value = item.id;
             document.getElementById('sellTargetName').textContent = item.name;
-            document.getElementById('sellTargetLoc').textContent = item.location;
+            document.getElementById('sellTargetLoc').textContent = item.location.toUpperCase();
             document.getElementById('sellTargetCurrentQty').textContent = `${item.quantity} 개`;
             document.getElementById('sellQtyInput').value = 1;
             document.getElementById('sellQtyInput').max = item.quantity;
-            
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('sellDateInput').value = today;
 
             document.getElementById('sellModal').classList.remove('hidden');
         }
 
-        function closeSellModal() {
-            document.getElementById('sellModal').classList.add('hidden');
-            document.getElementById('sellForm').reset();
-        }
+        function closeSellModal() { document.getElementById('sellModal').classList.add('hidden'); }
 
-        // [판매 처리 시 실시간 동기화 및 입력창 자동 비우기]
         function handleSellSubmit(e) {
             e.preventDefault();
 
@@ -1092,60 +1081,49 @@ function doPost(e) {
             if (!item) return;
 
             if (sellQty > item.quantity) {
-                showToast('판매 수량이 현재 잔여 수량보다 많습니다.', 'error');
+                showToast('판매 수량이 현재 잔여 수량보다 큽니다.', 'error');
                 return;
             }
 
             item.quantity -= sellQty;
             item.soldDate = sellDate;
             if (sellNote) {
-                item.notes = (item.notes ? item.notes + ' | ' : '') + `[${sellDate} ${sellQty}개 판매]: ${sellNote}`;
+                item.notes = (item.notes ? item.notes + ' | ' : '') + `[출고 ${sellDate}]: ${sellNote}`;
             }
 
             saveToLocalStorage();
             renderDashboard();
-
-            // [입력창 비우기] 폼 초기화 및 모달 닫기
-            document.getElementById('sellForm').reset();
             closeSellModal();
-
-            showToast(`'${item.name}' ${sellQty}개 판매 처리가 완료되었습니다.`);
-
-            // [실시간 구글 시트 동기화]
-            if (googleScriptUrl) {
-                syncToGoogleSheets(item);
-            }
+            showToast(`'${item.name}' ${sellQty}개 출고 완결 처리되었습니다.`);
         }
 
-        function deleteProduct(id) {
+        let pendingDeleteId = null;
+
+        function askDeleteProduct(id) {
             const item = inventoryList.find(p => p.id === id);
             if (!item) return;
 
-            if (confirm(`'${item.name}' 재고 품목을 삭제하시겠습니까?`)) {
-                inventoryList = inventoryList.filter(p => p.id !== id);
-                saveToLocalStorage();
-                renderDashboard();
-                showToast('재고 항목이 삭제되었습니다.');
-            }
-        }
+            pendingDeleteId = id;
+            document.getElementById('confirmTitle').textContent = '재고 품목 삭제';
+            document.getElementById('confirmMessage').textContent = `'${item.name}' (${item.location} 위치) 데이터를 삭제하시겠습니까?`;
 
-        function openSyncModal() {
-            document.getElementById('syncModal').classList.remove('hidden');
-        }
+            const modal = document.getElementById('confirmModal');
+            const okBtn = document.getElementById('confirmOkBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
 
-        function closeSyncModal() {
-            document.getElementById('syncModal').classList.add('hidden');
-        }
+            modal.classList.remove('hidden');
 
-        function copyScriptCode() {
-            const code = document.getElementById('codeBlock').innerText;
-            const textarea = document.createElement('textarea');
-            textarea.value = code;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            showToast('Google Apps Script 코드가 클립보드에 복사되었습니다!');
+            okBtn.onclick = () => {
+                if (pendingDeleteId) {
+                    inventoryList = inventoryList.filter(p => p.id !== pendingDeleteId);
+                    saveToLocalStorage();
+                    renderDashboard();
+                    showToast('품목이 성공적으로 삭제되었습니다.');
+                }
+                modal.classList.add('hidden');
+            };
+
+            cancelBtn.onclick = () => { modal.classList.add('hidden'); };
         }
 
         function exportCSV() {
@@ -1154,8 +1132,8 @@ function doPost(e) {
                 return;
             }
 
-            let csvContent = "\uFEFF"; // UTF-8 BOM for Korean Excel compatibility
-            csvContent += "제품ID,제품명,제품코드,보관위치,잔여수량,입고일자,최근판매일,메모\n";
+            let csvContent = "\uFEFF";
+            csvContent += "제품ID,제품명,제품코드,랙보관위치,잔여수량,입고일자,최근판매일,메모\n";
 
             inventoryList.forEach(item => {
                 const row = [
@@ -1175,11 +1153,122 @@ function doPost(e) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.setAttribute('href', url);
-            link.setAttribute('download', `재고관리_데이터_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute('download', `창고랙_재고현황_${new Date().toISOString().split('T')[0]}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showToast('CSV 재고 파일이 성공적으로 다운로드되었습니다.');
+            showToast('CSV 파일 다운로드가 완료되었습니다.');
+        }
+
+        function refreshDashboard(btn) {
+            if (btn) {
+                const icon = btn.querySelector('i');
+                if (icon) icon.classList.add('animate-spin');
+                setTimeout(() => icon.classList.remove('animate-spin'), 500);
+            }
+            renderDashboard();
+            showToast('화면 및 재고 데이터가 새로고침되었습니다.', 'info');
+        }
+
+        function openSyncModal() { document.getElementById('syncModal').classList.remove('hidden'); }
+        function closeSyncModal() { document.getElementById('syncModal').classList.add('hidden'); }
+
+        function copyGasCode() {
+            const codeText = document.getElementById('gasCodeTemplate').innerText;
+            const tempElem = document.createElement('textarea');
+            tempElem.value = codeText;
+            document.body.appendChild(tempElem);
+            tempElem.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempElem);
+            showToast('Apps Script 코드가 클립보드에 복사되었습니다! 구글 시트 스크립트 창에 붙여넣으세요.');
+        }
+
+        function saveSyncConfig() {
+            const url = document.getElementById('sheetScriptUrl').value.trim();
+            googleScriptUrl = url;
+            localStorage.setItem('app_google_script_url', url);
+            showToast('구글 시트 연동 URL 설정이 저장되었습니다.');
+            closeSyncModal();
+        }
+
+        // Fetch data from Google Sheets (Sheets -> App)
+        async function testAndFetchGoogleSheets(showToastMsg = true) {
+            const url = document.getElementById('sheetScriptUrl').value.trim();
+            if (!url) {
+                showToast('구글 스크립트 Web App URL을 입력해 주세요.', 'warning');
+                return;
+            }
+            googleScriptUrl = url;
+            localStorage.setItem('app_google_script_url', url);
+
+            if (showToastMsg) showToast('구글 시트 데이터를 불러오는 중입니다...', 'info');
+
+            try {
+                const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+                if (!response.ok) throw new Error(`HTTP 오류 상태코드: ${response.status}`);
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    inventoryList = data.map((row, idx) => ({
+                        id: String(row.id || `INV-${Date.now()}-${idx}`),
+                        code: String(row.code || row.productCode || ''),
+                        name: String(row.name || row.productName || '미지정 제품'),
+                        location: String(row.location || 'A1').toUpperCase(),
+                        quantity: Number(row.quantity || row.qty || 0),
+                        inboundDate: row.inboundDate || new Date().toISOString().split('T')[0],
+                        soldDate: row.soldDate || null,
+                        notes: String(row.notes || '')
+                    }));
+                    
+                    // Save locally without triggering loop push
+                    localStorage.setItem('app_rack_inventory', JSON.stringify(inventoryList));
+                    renderDashboard();
+                    if (showToastMsg) showToast(`구글 시트에서 ${inventoryList.length}건의 데이터를 성공적으로 불러왔습니다.`);
+                    closeSyncModal();
+                } else if (Array.isArray(data) && data.length === 0) {
+                    showToast('구글 시트에 동기화할 재고 데이터가 비어 있습니다.', 'warning');
+                } else {
+                    throw new Error('올바르지 않은 데이터 응답 형식입니다.');
+                }
+            } catch (err) {
+                console.error('Google Sheets Fetch Error:', err);
+                showToast('구글 시트 연동 실패: URL 주소 또는 웹 앱 배포 권한(모든 사용자)을 확인하세요.', 'error');
+            }
+        }
+
+        // Push data to Google Sheets (App -> Sheets)
+        async function pushToGoogleSheets(showToastMsg = true) {
+            const url = googleScriptUrl || document.getElementById('sheetScriptUrl').value.trim();
+            if (!url) {
+                if (showToastMsg) showToast('구글 스크립트 Web App URL을 입력해 주세요.', 'warning');
+                return;
+            }
+
+            if (showToastMsg) showToast('구글 시트에 데이터를 저장하는 중입니다...', 'info');
+
+            try {
+                // Using text/plain prevents CORS preflight issues with Google Apps Script
+                const response = await fetch(url, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(inventoryList),
+                    redirect: 'follow'
+                });
+
+                if (!response.ok) throw new Error(`HTTP 오류 상태코드: ${response.status}`);
+                const resData = await response.json();
+
+                if (resData && resData.status === 'success') {
+                    if (showToastMsg) showToast('웹 대시보드의 재고가 구글 시트에 즉시 반영되었습니다!');
+                } else {
+                    throw new Error(resData.message || '저장 처리 실패');
+                }
+            } catch (err) {
+                console.error('Google Sheets Push Error:', err);
+                if (showToastMsg) showToast('구글 시트 저장 실패: 권한 설정 및 doPost 함수 포함 여부를 확인하세요.', 'error');
+            }
         }
 
         function showToast(msg, type = 'success') {
@@ -1189,31 +1278,21 @@ function doPost(e) {
 
             toastMsg.textContent = msg;
 
-            if (type === 'error') {
-                toastIcon.className = 'fa-solid fa-circle-xmark text-red-400 text-lg';
-            } else if (type === 'warning') {
-                toastIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-lg';
-            } else if (type === 'info') {
-                toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
-            } else {
-                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
-            }
+            if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-lg';
+            else if (type === 'warning') toastIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-lg';
+            else if (type === 'info') toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
+            else toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
 
             toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
 
             setTimeout(() => {
                 toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-            }, 3000);
+            }, 3200);
         }
 
         function escapeHtml(str) {
             if (!str) return '';
-            return str
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
     </script>
 </body>
