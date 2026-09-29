@@ -387,7 +387,7 @@
                             <span>연동 테스트 & 데이터 동기화</span>
                         </button>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-1">배포 URL을 입력 후 [연동 테스트] 버튼을 누르면 구글 시트의 기존 데이터를 즉시 대시보드로 가져옵니다.</p>
+                    <p class="text-[11px] text-slate-400 mt-1">배포 URL을 입력 후 [설정 저장 및 연결]을 누르면 브라우저 메모리(LocalStorage)에 안전하게 영구 저장되어 매번 새로 입력할 필요가 없습니다.</p>
                 </div>
 
                 <div class="border-t border-slate-200 pt-3">
@@ -504,20 +504,20 @@ function doPost(e) {
                     닫기
                 </button>
                 <button onclick="saveSyncConfig()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition shadow">
-                    설정 저장 및 연결
+                    설정 저장하기
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Custom Toast Notification Box -->
+    <!-- Toast Notification Container -->
     <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
         <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
         <span id="toastMessage" class="text-xs sm:text-sm font-medium"></span>
     </div>
 
     <script>
-        // Sample Initial Data based on Google Sheet structure (e.g., A제품 / A1, 2026.09.26 입고)
+        // Sample Initial Data based on Google Sheet structure
         const initialInventory = [
             {
                 id: 'INV-1001',
@@ -586,9 +586,8 @@ function doPost(e) {
         let currentFilterStatus = 'ALL';
         let googleScriptUrl = '';
 
-        // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            // Load local storage if exists, otherwise use initial sample data
+            // 1. LocalStorage에서 로컬 백업 데이터 가져오기
             const savedData = localStorage.getItem('app_inventory_data');
             if (savedData) {
                 try {
@@ -601,11 +600,14 @@ function doPost(e) {
                 saveToLocalStorage();
             }
 
+            // 2. [자동 저장 & 자동 로드] 저장된 연동 URL이 존재하면 읽어옴
             googleScriptUrl = localStorage.getItem('app_google_script_url') || '';
             if (googleScriptUrl) {
                 googleScriptUrl = fixScriptUrl(googleScriptUrl);
                 document.getElementById('sheetScriptUrl').value = googleScriptUrl;
-                // Auto fetch if URL exists
+                
+                // [접속 시 자동 데이터 동기화 (Auto Fetch)]
+                // 사이트에 들어오는 순간 구글 시트의 최신 재고 목록을 자동으로 읽어와 대시보드 화면 갱신
                 testAndFetchGoogleSheets(false);
             }
 
@@ -627,7 +629,12 @@ function doPost(e) {
             return url;
         }
 
-        // Test connection and fetch live data from Google Sheets
+        // Save State to LocalStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('app_inventory_data', JSON.stringify(inventoryList));
+        }
+
+        // Test connection and fetch live data from Google Sheets (Auto Fetch Support)
         function testAndFetchGoogleSheets(showNotification = true) {
             let url = document.getElementById('sheetScriptUrl').value.trim();
             url = fixScriptUrl(url);
@@ -643,7 +650,7 @@ function doPost(e) {
                 return;
             }
 
-            if (showNotification) showToast('구글 시트에 연결하여 데이터를 확인하는 중...', 'info');
+            if (showNotification) showToast('구글 시트에 연결하여 최신 데이터를 읽어오는 중...', 'info');
 
             fetch(url)
                 .then(res => res.json())
@@ -654,7 +661,7 @@ function doPost(e) {
                             saveToLocalStorage();
                             renderDashboard();
                             if (showNotification) {
-                                showToast(`연동 성공! 구글 시트에서 ${data.data.length}개의 재고 항목을 불러왔습니다.`, 'success');
+                                showToast(`연동 성공! 구글 시트에서 ${data.data.length}개의 최신 재고 목록을 가져왔습니다.`, 'success');
                             }
                         } else {
                             if (showNotification) {
@@ -675,12 +682,43 @@ function doPost(e) {
                 });
         }
 
-        // Save State
-        function saveToLocalStorage() {
-            localStorage.setItem('app_inventory_data', JSON.stringify(inventoryList));
+        // [자동 저장 (LocalStorage)] - 설정 저장 버튼 누르면 브라우저 메모리에 영구 보관
+        function saveSyncConfig() {
+            let url = document.getElementById('sheetScriptUrl').value.trim();
+            url = fixScriptUrl(url);
+            googleScriptUrl = url;
+            
+            // LocalStorage에 연동 URL 저장
+            localStorage.setItem('app_google_script_url', url);
+            
+            if (url) {
+                testAndFetchGoogleSheets(true);
+            } else {
+                showToast('연동 URL이 해제되었습니다.', 'info');
+            }
+            closeSyncModal();
         }
 
-        // Refresh Dashboard Data
+        // [입력/수정/판매 시 실시간 동기화] - 구글 시트로 데이터 전송
+        function syncToGoogleSheets(itemData) {
+            if (!googleScriptUrl) return;
+            const url = fixScriptUrl(googleScriptUrl);
+
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(itemData)
+            }).then(() => {
+                showToast('구글 시트로 최신 데이터가 자동 전송되었습니다.', 'success');
+            }).catch(err => {
+                console.error('Google Sheets Sync Error:', err);
+                showToast('구글 시트 전송 중 오류가 발생했습니다.', 'error');
+            });
+        }
+
         function refreshDashboard(btnElement) {
             let icon = null;
             if (btnElement) {
@@ -692,7 +730,6 @@ function doPost(e) {
                 testAndFetchGoogleSheets(false);
             }
 
-            // Reload data from local storage
             const savedData = localStorage.getItem('app_inventory_data');
             if (savedData) {
                 try {
@@ -718,14 +755,12 @@ function doPost(e) {
             showToast('검색 및 필터 조건이 초기화되었습니다.', 'info');
         }
 
-        // Render Dashboard UI
         function renderDashboard() {
             renderMetrics();
             renderLocationCards();
             renderTable();
         }
 
-        // Calculate and Render Metrics
         function renderMetrics() {
             const totalItems = inventoryList.length;
             const totalStock = inventoryList.reduce((acc, curr) => acc + Number(curr.quantity), 0);
@@ -738,12 +773,10 @@ function doPost(e) {
             document.getElementById('statSoldCount').textContent = soldCount;
         }
 
-        // Render Location (Rack) Map Cards
         function renderLocationCards() {
             const gridContainer = document.getElementById('locationGrid');
             const zoneFilter = document.getElementById('zoneFilter').value;
 
-            // Group inventory items by location (e.g. A1, A2, B1...)
             const locationMap = {};
 
             inventoryList.forEach(item => {
@@ -760,9 +793,7 @@ function doPost(e) {
                 locationMap[loc].items.push(item);
             });
 
-            // Sort locations alphabetically
             const sortedLocations = Object.keys(locationMap).sort();
-
             gridContainer.innerHTML = '';
 
             if (sortedLocations.length === 0) {
@@ -771,7 +802,6 @@ function doPost(e) {
             }
 
             sortedLocations.forEach(loc => {
-                // Apply zone filter
                 if (zoneFilter !== 'ALL' && !loc.startsWith(zoneFilter)) {
                     return;
                 }
@@ -808,27 +838,23 @@ function doPost(e) {
             });
         }
 
-        // Quick filter table by clicking location card
         function filterByLocation(locCode) {
             document.getElementById('searchInput').value = locCode;
             handleSearch();
             showToast(`'${locCode}' 위치에 보관 중인 품목을 검색합니다.`, 'info');
         }
 
-        // Render Inventory Table
         function renderTable() {
             const tableBody = document.getElementById('inventoryTableBody');
             const emptyState = document.getElementById('emptyState');
             const searchKeyword = document.getElementById('searchInput').value.trim().toLowerCase();
 
             let filtered = inventoryList.filter(item => {
-                // Text Search Filter (Product Name, Code, Location)
                 const matchesSearch = 
                     item.name.toLowerCase().includes(searchKeyword) ||
                     (item.code && item.code.toLowerCase().includes(searchKeyword)) ||
                     item.location.toLowerCase().includes(searchKeyword);
 
-                // Status Filter
                 let matchesStatus = true;
                 if (currentFilterStatus === 'IN_STOCK') {
                     matchesStatus = item.quantity > 0;
@@ -917,7 +943,6 @@ function doPost(e) {
             document.getElementById('displayedCount').textContent = filtered.length;
         }
 
-        // Search & Filter Event Handlers
         function handleSearch() {
             renderTable();
         }
@@ -925,7 +950,6 @@ function doPost(e) {
         function setFilterStatus(status) {
             currentFilterStatus = status;
 
-            // Update button styles
             const buttons = {
                 'ALL': 'filterBtnAll',
                 'IN_STOCK': 'filterBtnInStock',
@@ -945,7 +969,6 @@ function doPost(e) {
             renderTable();
         }
 
-        // Modal Handlers
         function openAddModal() {
             document.getElementById('inventoryForm').reset();
             document.getElementById('formProductId').value = '';
@@ -957,6 +980,7 @@ function doPost(e) {
 
         function closeAddModal() {
             document.getElementById('addModal').classList.add('hidden');
+            document.getElementById('inventoryForm').reset();
         }
 
         function openEditModal(id) {
@@ -975,7 +999,7 @@ function doPost(e) {
             document.getElementById('addModal').classList.remove('hidden');
         }
 
-        // Submit Add / Edit Form
+        // [입력/수정 시 실시간 동기화 및 입력창 자동 비우기]
         function handleFormSubmit(e) {
             e.preventDefault();
 
@@ -990,7 +1014,6 @@ function doPost(e) {
             let targetItem = null;
 
             if (id) {
-                // Update Existing Item
                 targetItem = inventoryList.find(p => p.id === id);
                 if (targetItem) {
                     targetItem.name = name;
@@ -1002,7 +1025,6 @@ function doPost(e) {
                     showToast('재고 정보가 성공적으로 수정되었습니다.');
                 }
             } else {
-                // Create New Item
                 targetItem = {
                     id: 'INV-' + Date.now().toString().slice(-5),
                     code: code || ('PRD-' + Math.floor(100 + Math.random() * 900)),
@@ -1019,15 +1041,17 @@ function doPost(e) {
 
             saveToLocalStorage();
             renderDashboard();
+
+            // [입력창 비우기] 폼 자동 리셋 및 모달 닫기
+            document.getElementById('inventoryForm').reset();
             closeAddModal();
 
-            // Trigger Google Sheets Sync if Webhook configured
+            // [실시간 구글 시트 동기화]
             if (googleScriptUrl && targetItem) {
                 syncToGoogleSheets(targetItem);
             }
         }
 
-        // Open Sell Modal
         function openSellModal(id) {
             const item = inventoryList.find(p => p.id === id);
             if (!item) return;
@@ -1052,9 +1076,10 @@ function doPost(e) {
 
         function closeSellModal() {
             document.getElementById('sellModal').classList.add('hidden');
+            document.getElementById('sellForm').reset();
         }
 
-        // Submit Sell Form
+        // [판매 처리 시 실시간 동기화 및 입력창 자동 비우기]
         function handleSellSubmit(e) {
             e.preventDefault();
 
@@ -1079,17 +1104,19 @@ function doPost(e) {
 
             saveToLocalStorage();
             renderDashboard();
+
+            // [입력창 비우기] 폼 초기화 및 모달 닫기
+            document.getElementById('sellForm').reset();
             closeSellModal();
 
             showToast(`'${item.name}' ${sellQty}개 판매 처리가 완료되었습니다.`);
 
-            // Trigger Google Sheets Sync
+            // [실시간 구글 시트 동기화]
             if (googleScriptUrl) {
                 syncToGoogleSheets(item);
             }
         }
 
-        // Delete Product
         function deleteProduct(id) {
             const item = inventoryList.find(p => p.id === id);
             if (!item) return;
@@ -1102,46 +1129,12 @@ function doPost(e) {
             }
         }
 
-        // Google Sheets Integration Functions
         function openSyncModal() {
             document.getElementById('syncModal').classList.remove('hidden');
         }
 
         function closeSyncModal() {
             document.getElementById('syncModal').classList.add('hidden');
-        }
-
-        function saveSyncConfig() {
-            let url = document.getElementById('sheetScriptUrl').value.trim();
-            url = fixScriptUrl(url);
-            googleScriptUrl = url;
-            localStorage.setItem('app_google_script_url', url);
-            
-            if (url) {
-                testAndFetchGoogleSheets(true);
-            } else {
-                showToast('연동 URL이 해제되었습니다.', 'info');
-            }
-            closeSyncModal();
-        }
-
-        function syncToGoogleSheets(itemData) {
-            if (!googleScriptUrl) return;
-            const url = fixScriptUrl(googleScriptUrl);
-
-            fetch(url, {
-                method: 'POST',
-                mode: 'no-cors', // Apps Script CORS handling
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                },
-                body: JSON.stringify(itemData)
-            }).then(() => {
-                showToast('구글 시트에 데이터가 자동 기록되었습니다.', 'success');
-            }).catch(err => {
-                console.error('Google Sheets Sync Error:', err);
-                showToast('구글 시트 전송 중 오류가 발생했습니다.', 'error');
-            });
         }
 
         function copyScriptCode() {
@@ -1155,7 +1148,6 @@ function doPost(e) {
             showToast('Google Apps Script 코드가 클립보드에 복사되었습니다!');
         }
 
-        // Export Data to CSV File
         function exportCSV() {
             if (inventoryList.length === 0) {
                 showToast('내보낼 데이터가 없습니다.', 'warning');
@@ -1190,7 +1182,6 @@ function doPost(e) {
             showToast('CSV 재고 파일이 성공적으로 다운로드되었습니다.');
         }
 
-        // Toast Notification System
         function showToast(msg, type = 'success') {
             const toast = document.getElementById('toast');
             const toastMsg = document.getElementById('toastMessage');
@@ -1215,7 +1206,6 @@ function doPost(e) {
             }, 3000);
         }
 
-        // Utility: Escape HTML String
         function escapeHtml(str) {
             if (!str) return '';
             return str
