@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실제 창고 랙 기반 스마트 재고 관리 시스템</title>
+    <title>3D 실제 창고 랙 기반 스마트 재고 관리 시스템</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter & Noto Sans KR -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js 3D Engine & OrbitControls CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -26,73 +31,98 @@
                     },
                     fontFamily: {
                         sans: ['Noto Sans KR', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
                     }
                 }
             }
         }
     </script>
+    
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
 
         /* Industrial Metallic Rack Framework Effects */
-        .rack-frame {
-            background: #1e293b;
+        .rack-frame-bg {
+            background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
             border: 4px solid #334155;
-            border-radius: 0.75rem;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            position: relative;
-        }
-
-        .rack-post {
-            background: linear-gradient(180deg, #475569 0%, #334155 50%, #1e293b 100%);
-            width: 8px;
-            box-shadow: inset 1px 0 0 rgba(255,255,255,0.2), 2px 0 4px rgba(0,0,0,0.4);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8), 0 20px 25px -5px rgba(0, 0, 0, 0.3);
         }
 
         .rack-beam {
-            background: linear-gradient(0deg, #334155 0%, #475569 100%);
-            height: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(0deg, #334155 0%, #475569 50%, #64748b 100%);
+            height: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 3D Canvas Container */
+        #threeCanvasContainer {
+            width: 100%;
+            height: 480px;
+            position: relative;
+            background-color: #090d16;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            touch-action: none;
         }
 
         /* Cell Hover Glow Effects */
         .rack-cell {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .rack-cell:hover {
-            transform: translateY(-2px) scale(1.02);
-            z-index: 10;
+            transform: translateY(-3px) scale(1.03);
+            z-index: 20;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Pulse Animations for Low Stock / Sold Out */
+        @keyframes subtle-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-subtle-pulse {
+            animation: subtle-pulse 1.8s infinite ease-in-out;
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
 
-    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 border-b border-slate-800">
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-30 border-b border-slate-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl text-white shadow-md">
-                    <i class="fa-solid fa-warehouse text-xl"></i>
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl text-white shadow-md shadow-blue-500/20">
+                    <i class="fa-solid fa-cube text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
-                        스마트 창고 랙(Rack) 대시보드
-                        <span class="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full font-normal">실제 랙 구조 1:1 연동</span>
+                    <h1 class="font-extrabold text-base sm:text-lg leading-tight flex items-center gap-2 tracking-tight">
+                        3D 스마트 창고 랙(Rack) 대시보드
+                        <span class="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full font-semibold hidden sm:inline-block">Three.js WebGL V3.0</span>
                     </h1>
-                    <p class="text-xs text-slate-400 hidden sm:block">4단 10열 (A1~D10) 실시간 위치 및 수량 추적</p>
+                    <p class="text-xs text-slate-400 hidden sm:block font-mono">마우스 3D 회전/확대 제어 + 4단 10열 (A1~D10) 실시간 추적</p>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-2 sm:space-x-3">
-                <button onclick="refreshDashboard(this)" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs sm:text-sm font-medium transition shadow-sm" title="새로고침">
-                    <i class="fa-solid fa-rotate"></i>
-                    <span class="hidden sm:inline">새로고침</span>
+            <div class="flex items-center space-x-1.5 sm:space-x-2.5">
+                <button onclick="toggleViewMode('3d')" id="btnView3D" class="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold transition shadow-sm" title="3D 입체 뷰어">
+                    <i class="fa-solid fa-cubes"></i>
+                    <span class="hidden md:inline">3D 인터랙티브</span>
                 </button>
 
-                <button onclick="openSyncModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-medium transition shadow-sm">
+                <button onclick="toggleViewMode('2d')" id="btnView2D" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition shadow-sm" title="2D 평면 뷰어">
+                    <i class="fa-solid fa-table-cells"></i>
+                    <span class="hidden md:inline">2D 그리드</span>
+                </button>
+
+                <button onclick="refreshDashboard()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition shadow-sm" title="새로고침">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span class="hidden md:inline">새로고침</span>
+                </button>
+
+                <button onclick="openSyncModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition shadow-sm">
                     <i class="fa-solid fa-file-excel"></i>
                     <span class="hidden md:inline">구글 시트 연동</span>
                     <span class="md:hidden">시트</span>
@@ -108,11 +138,12 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+        <!-- Top Summary Metric Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-semibold text-slate-500">총 관리 품목 수</p>
-                    <h3 id="statTotalItems" class="text-2xl font-black text-slate-800 mt-0.5">0</h3>
+                    <h3 id="statTotalItems" class="text-2xl font-black text-slate-800 mt-0.5 font-mono">0</h3>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                     <i class="fa-solid fa-box text-lg"></i>
@@ -122,7 +153,7 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-semibold text-slate-500">총 보유 수량</p>
-                    <h3 id="statTotalStock" class="text-2xl font-black text-emerald-600 mt-0.5">0</h3>
+                    <h3 id="statTotalStock" class="text-2xl font-black text-emerald-600 mt-0.5 font-mono">0</h3>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <i class="fa-solid fa-cubes text-lg"></i>
@@ -132,7 +163,7 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-semibold text-slate-500">랙 공간 가동률</p>
-                    <h3 id="statOccupancyRate" class="text-2xl font-black text-indigo-600 mt-0.5">0%</h3>
+                    <h3 id="statOccupancyRate" class="text-2xl font-black text-indigo-600 mt-0.5 font-mono">0%</h3>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <i class="fa-solid fa-chart-pie text-lg"></i>
@@ -141,8 +172,8 @@
 
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-semibold text-slate-500">재고 부족 경고 (≤5개)</p>
-                    <h3 id="statLowStock" class="text-2xl font-black text-amber-500 mt-0.5">0</h3>
+                    <p class="text-xs font-semibold text-slate-500">재고 부족 (≤5개)</p>
+                    <h3 id="statLowStock" class="text-2xl font-black text-amber-500 mt-0.5 font-mono">0</h3>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
                     <i class="fa-solid fa-triangle-exclamation text-lg"></i>
@@ -151,8 +182,8 @@
 
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between col-span-2 lg:col-span-1">
                 <div>
-                    <p class="text-xs font-semibold text-slate-500">최근 출고/판매건</p>
-                    <h3 id="statSoldCount" class="text-2xl font-black text-purple-600 mt-0.5">0</h3>
+                    <p class="text-xs font-semibold text-slate-500">누적 출고/판매건</p>
+                    <h3 id="statSoldCount" class="text-2xl font-black text-purple-600 mt-0.5 font-mono">0</h3>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                     <i class="fa-solid fa-cart-shopping text-lg"></i>
@@ -164,112 +195,112 @@
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-blue-600"></i>
-                        실제 창고 랙(Rack) 위치별 실시간 재고 맵
+                        <i class="fa-solid fa-cubes-stacked text-blue-600"></i>
+                        3D 실감형 창고 랙(Rack) 인터랙티브 뷰어
                     </h2>
                     <p class="text-xs text-slate-500 mt-0.5">
-                        상단 A단부터 하단 D단까지 각 10개 셀(총 40칸). 원하시는 셀을 클릭하면 해당 위치 데이터만 즉시 조회됩니다.
+                        <span class="text-blue-600 font-semibold">마우스 좌클릭 드래그</span>로 360도 회전, <span class="text-blue-600 font-semibold">휠 스크롤</span>로 확대/축소가 가능합니다. 3D 박스를 클릭하면 해당 슬롯을 조회합니다.
                     </p>
                 </div>
 
-                <!-- Legend & Controls -->
+                <!-- Legend & Quick Camera Controls -->
                 <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
+                        <button onclick="setCameraView('iso')" class="px-2.5 py-1 bg-white shadow-sm text-slate-700 font-medium rounded hover:bg-slate-200 transition">3D 입체</button>
+                        <button onclick="setCameraView('front')" class="px-2.5 py-1 bg-white shadow-sm text-slate-700 font-medium rounded hover:bg-slate-200 transition">정면</button>
+                        <button onclick="setCameraView('top')" class="px-2.5 py-1 bg-white shadow-sm text-slate-700 font-medium rounded hover:bg-slate-200 transition">조감도(위)</button>
+                        <button onclick="resetCameraView()" class="px-2 py-1 bg-slate-800 text-white font-medium rounded hover:bg-slate-700 transition" title="시점 초기화">
+                            <i class="fa-solid fa-arrows-to-dot"></i>
+                        </button>
+                    </div>
+
                     <div class="flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 정상(6개+)</span>
-                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 부족(1~5개)</span>
-                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 품절(0개)</span>
-                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> 빈 위치</span>
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 정상</span>
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 부족</span>
+                        <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 품절</span>
                     </div>
 
                     <button onclick="resetFilters()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition flex items-center gap-1">
-                        <i class="fa-solid fa-arrows-rotate text-xs"></i> 선택 해제
+                        <i class="fa-solid fa-arrows-rotate text-xs"></i> 필터 해제
                     </button>
                 </div>
             </div>
 
-            <!-- Visual Industrial Rack Framework Diagram -->
-            <div class="overflow-x-auto custom-scrollbar pb-2">
-                <div class="min-w-[860px] bg-slate-950 p-4 rounded-xl border-4 border-slate-800 shadow-inner">
-                    
-                    <!-- Top Rack Overhead Bar -->
-                    <div class="flex justify-between items-center text-slate-400 text-[11px] font-mono px-2 mb-2 border-b border-slate-800 pb-1">
-                        <span><i class="fa-solid fa-industry text-blue-400 mr-1"></i> 메인 랙 프레임 (4TIER - 10COLUMNS)</span>
-                        <span>총 40 슬롯</span>
+            <!-- 3D Canvas Visualizer Section -->
+            <div id="threeViewSection" class="block">
+                <div id="threeCanvasContainer">
+                    <!-- Dynamic Tooltip Overlay -->
+                    <div id="threeTooltip" class="absolute hidden bg-slate-900/90 text-white text-xs p-2.5 rounded-lg shadow-xl backdrop-blur-md border border-slate-700 pointer-events-none z-30 space-y-1">
+                        <div class="font-bold text-blue-400 font-mono flex items-center gap-1" id="tooltipLoc">A1 Slot</div>
+                        <div id="tooltipName" class="text-slate-200 font-medium">제품명</div>
+                        <div id="tooltipQty" class="text-emerald-400 font-mono">수량: 0개</div>
                     </div>
 
-                    <!-- 4 Tiers Container (A, B, C, D) -->
-                    <div class="space-y-3 relative">
-
-                        <!-- ROW A (Top Tier) -->
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-bold text-amber-400 font-mono flex items-center gap-1">
-                                    <i class="fa-solid fa-bars text-amber-400"></i> A단 (최상단)
-                                </span>
-                                <span class="text-[10px] text-slate-500">A1 ~ A10</span>
-                            </div>
-                            <div id="rackRowA" class="grid grid-cols-10 gap-1.5"></div>
-                            <div class="rack-beam mt-1.5 rounded-full"></div>
-                        </div>
-
-                        <!-- ROW B (2nd Tier) -->
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-bold text-blue-400 font-mono flex items-center gap-1">
-                                    <i class="fa-solid fa-bars text-blue-400"></i> B단 (2단)
-                                </span>
-                                <span class="text-[10px] text-slate-500">B1 ~ B10</span>
-                            </div>
-                            <div id="rackRowB" class="grid grid-cols-10 gap-1.5"></div>
-                            <div class="rack-beam mt-1.5 rounded-full"></div>
-                        </div>
-
-                        <!-- ROW C (3rd Tier) -->
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-bold text-indigo-400 font-mono flex items-center gap-1">
-                                    <i class="fa-solid fa-bars text-indigo-400"></i> C단 (3단)
-                                </span>
-                                <span class="text-[10px] text-slate-500">C1 ~ C10</span>
-                            </div>
-                            <div id="rackRowC" class="grid grid-cols-10 gap-1.5"></div>
-                            <div class="rack-beam mt-1.5 rounded-full"></div>
-                        </div>
-
-                        <!-- ROW D (Bottom Tier) -->
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-bold text-emerald-400 font-mono flex items-center gap-1">
-                                    <i class="fa-solid fa-bars text-emerald-400"></i> D단 (하단)
-                                </span>
-                                <span class="text-[10px] text-slate-500">D1 ~ D10</span>
-                            </div>
-                            <div id="rackRowD" class="grid grid-cols-10 gap-1.5"></div>
-                            <div class="rack-beam mt-1.5 rounded-full"></div>
-                        </div>
-
+                    <!-- Selected Slot Info Banner Overlay -->
+                    <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-sm border border-slate-700 px-3 py-1.5 rounded-lg text-white text-xs font-mono flex items-center gap-2 z-20 shadow-md">
+                        <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+                        <span id="selectedSlotIndicator3D" class="text-amber-300 font-semibold">선택: 전체 랙 보는 중</span>
                     </div>
 
-                    <!-- Column Numbers Bottom Guide -->
-                    <div class="grid grid-cols-10 gap-1.5 mt-3 pt-2 border-t border-slate-800 text-center text-[10px] font-mono text-slate-400">
-                        <div>COL 1</div>
-                        <div>COL 2</div>
-                        <div>COL 3</div>
-                        <div>COL 4</div>
-                        <div>COL 5</div>
-                        <div>COL 6</div>
-                        <div>COL 7</div>
-                        <div>COL 8</div>
-                        <div>COL 9</div>
-                        <div>COL 10</div>
+                    <!-- Instruction Overlay Helper -->
+                    <div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 px-3 py-1.5 rounded-lg text-slate-300 text-[11px] font-mono pointer-events-none z-20 flex items-center gap-2 hidden sm:flex">
+                        <i class="fa-solid fa-hand-pointer text-blue-400"></i>
+                        <span>마우스 좌클릭: 회전 | 우클릭: 이동 | 휠: 확대</span>
                     </div>
-
                 </div>
             </div>
+
+            <!-- 2D View Container (Fallback / Toggle Option) -->
+            <div id="twoViewSection" class="hidden overflow-x-auto custom-scrollbar pb-2">
+                <div class="min-w-[860px] rack-frame-bg p-4 rounded-xl">
+                    <div class="flex justify-between items-center text-slate-300 text-[11px] font-mono px-2 mb-3 border-b border-slate-800 pb-2">
+                        <span class="flex items-center gap-1.5 font-bold text-blue-400">
+                            <i class="fa-solid fa-industry"></i>
+                            메인 프레임 2D 랙 (A1~D10)
+                        </span>
+                        <span id="selectedSlotIndicator2D" class="text-amber-400 font-semibold">선택: 전체 보기</span>
+                    </div>
+
+                    <div class="space-y-3.5 relative">
+                        <div>
+                            <div class="flex items-center justify-between mb-1 px-1 text-xs font-bold text-amber-400 font-mono">
+                                <span>A단 (최상단)</span><span>A1 ~ A10</span>
+                            </div>
+                            <div id="rackRowA" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-md"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1 px-1 text-xs font-bold text-blue-400 font-mono">
+                                <span>B단 (2단)</span><span>B1 ~ B10</span>
+                            </div>
+                            <div id="rackRowB" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-md"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1 px-1 text-xs font-bold text-indigo-400 font-mono">
+                                <span>C단 (3단)</span><span>C1 ~ C10</span>
+                            </div>
+                            <div id="rackRowC" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-md"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1 px-1 text-xs font-bold text-emerald-400 font-mono">
+                                <span>D단 (하단 중량물)</span><span>D1 ~ D10</span>
+                            </div>
+                            <div id="rackRowD" class="grid grid-cols-10 gap-1.5"></div>
+                            <div class="rack-beam mt-1.5 rounded-md"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </section>
 
         <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <!-- Filter & Search Controls -->
+            <!-- Filter & Search Controls Header -->
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <!-- Search Box -->
                 <div class="relative flex-1 flex items-center gap-2">
@@ -285,7 +316,7 @@
 
                 <!-- Quick Filter Buttons -->
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                    <button onclick="setFilterStatus('ALL')" id="filterBtnAll" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition whitespace-nowrap">
+                    <button onclick="setFilterStatus('ALL')" id="filterBtnAll" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition whitespace-nowrap shadow-sm">
                         전체 보기
                     </button>
                     <button onclick="setFilterStatus('IN_STOCK')" id="filterBtnInStock" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap">
@@ -295,7 +326,10 @@
                         부족 (1~5개)
                     </button>
                     <button onclick="setFilterStatus('EMPTY')" id="filterBtnEmpty" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-rose-600 hover:bg-rose-50 transition whitespace-nowrap">
-                        품절/비어있음
+                        품절 (0개)
+                    </button>
+                    <button onclick="openLogModal()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition whitespace-nowrap flex items-center gap-1">
+                        <i class="fa-solid fa-list-check text-xs"></i> 입출고 이력
                     </button>
                 </div>
             </div>
@@ -310,30 +344,35 @@
                             <th class="p-3.5 text-center">보관 수량</th>
                             <th class="p-3.5">입고 일자</th>
                             <th class="p-3.5">최근 출고/판매일</th>
-                            <th class="p-3.5 text-right">작업</th>
+                            <th class="p-3.5 text-right">작업 관리</th>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody" class="divide-y divide-slate-100">
-                        <!-- Table Rows Populated via JS -->
+                        <!-- Populated via JS -->
                     </tbody>
                 </table>
             </div>
 
             <!-- Empty Data State -->
-            <div id="emptyState" class="hidden p-8 text-center">
-                <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 mb-2">
-                    <i class="fa-solid fa-magnifying-glass text-xl"></i>
+            <div id="emptyState" class="hidden p-10 text-center">
+                <div class="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 mb-3">
+                    <i class="fa-solid fa-magnifying-glass text-2xl"></i>
                 </div>
-                <p class="text-sm font-semibold text-slate-700">검색된 재고 항목이 없습니다.</p>
-                <p class="text-xs text-slate-400 mt-1">검색어를 변경하거나 랙 맵의 다른 위치를 클릭해 보세요.</p>
+                <p class="text-base font-bold text-slate-700">검색된 재고 항목이 없습니다.</p>
+                <p class="text-xs text-slate-400 mt-1">검색어를 변경하거나 3D/2D 랙 맵에서 다른 셀 위치를 선택해 보세요.</p>
             </div>
 
             <!-- Table Footer -->
-            <div class="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
-                <span>표시 중인 품목: <strong id="displayedCount" class="text-slate-800">0</strong>개</span>
-                <button onclick="exportCSV()" class="text-slate-700 hover:text-blue-600 font-medium transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-download"></i> CSV 데이터 내보내기
-                </button>
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
+                <span>표시 중인 품목: <strong id="displayedCount" class="text-slate-800 font-mono">0</strong>개</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="resetSampleData()" class="text-slate-500 hover:text-slate-800 font-medium transition flex items-center gap-1">
+                        <i class="fa-solid fa-arrows-rotate"></i> 초기 샘플데이터 복원
+                    </button>
+                    <button onclick="exportCSV()" class="text-blue-600 hover:text-blue-800 font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> CSV Excel 내보내기
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -357,7 +396,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">제품명 <span class="text-red-500">*</span></label>
-                    <input type="text" id="formProductName" required placeholder="예: 무선 게이밍 마우스 A급" 
+                    <input type="text" id="formProductName" required placeholder="예: 프리미엄 게이밍 마우스 A급" 
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
 
@@ -365,12 +404,12 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">제품 코드</label>
                         <input type="text" id="formProductCode" placeholder="예: PRD-A01" 
-                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">랙 위치 선택 <span class="text-red-500">*</span></label>
-                        <select id="formLocation" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                            <!-- Populated with A1~D10 options dynamically -->
+                        <select id="formLocation" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase font-mono focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <!-- Populated dynamically (A1~D10) -->
                         </select>
                     </div>
                 </div>
@@ -378,7 +417,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">입고 수량 <span class="text-red-500">*</span></label>
-                        <input type="number" id="formQuantity" min="0" required placeholder="예: 10" 
+                        <input type="number" id="formQuantity" min="0" required placeholder="10" 
                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
@@ -390,7 +429,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">메모 / 특이사항</label>
-                    <textarea id="formNotes" rows="2" placeholder="보관 상태, 규격 등 특이사항 입력" 
+                    <textarea id="formNotes" rows="2" placeholder="보관 상태, 파렛트 규격 등 비고 기입" 
                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                 </div>
 
@@ -433,18 +472,18 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-slate-500">현재 잔여 수량:</span>
-                        <span id="sellTargetCurrentQty" class="font-semibold text-emerald-600"></span>
+                        <span id="sellTargetCurrentQty" class="font-semibold text-emerald-600 font-mono"></span>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">판매(출고) 수량 <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">출고/판매 수량 <span class="text-red-500">*</span></label>
                         <input type="number" id="sellQtyInput" min="1" required placeholder="1" 
                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">판매 일자 <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">판매/출고 일자 <span class="text-red-500">*</span></label>
                         <input type="date" id="sellDateInput" required 
                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
                     </div>
@@ -452,7 +491,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">판매 관련 메모</label>
-                    <input type="text" id="sellNoteInput" placeholder="주문자명, 송장번호 등" 
+                    <input type="text" id="sellNoteInput" placeholder="주문자명, 송장번호, 거래처 등" 
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
                 </div>
 
@@ -461,10 +500,36 @@
                         취소
                     </button>
                     <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition shadow">
-                        출고/판매 완료
+                        출고 처리 완료
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Activity Log Modal -->
+    <div id="logModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-800 text-white">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-400"></i>
+                    <span>최근 입출고 이력 기록</span>
+                </h3>
+                <button onclick="closeLogModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-2 text-xs" id="logListContainer">
+                <!-- Log items rendered dynamically -->
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
+                <span>총 이력 건수: <strong id="logCount">0</strong>건</span>
+                <button onclick="closeLogModal()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-medium transition">
+                    닫기
+                </button>
+            </div>
         </div>
     </div>
 
@@ -489,13 +554,13 @@
         </div>
     </div>
 
-    <!-- Enhanced Google Sheet Sync Modal -->
+    <!-- Google Sheet Sync Modal -->
     <div id="syncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
             <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-emerald-50">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fa-solid fa-file-excel text-emerald-600"></i>
-                    <span>구글 시트(Google Sheets) 완벽 양방향 연동 설정</span>
+                    <span>구글 시트(Google Sheets) 완벽 양방향 연동</span>
                 </h3>
                 <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -504,7 +569,6 @@
 
             <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar text-xs sm:text-sm text-slate-600">
                 
-                <!-- Step-by-step Setup Instructions -->
                 <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <p class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                         <i class="fa-solid fa-circle-info text-blue-600"></i>
@@ -512,13 +576,12 @@
                     </p>
                     <ol class="list-decimal list-inside space-y-1 text-xs text-slate-600 leading-relaxed pl-1">
                         <li>사용하시는 구글 스프레드시트 개설 ➔ <strong>[확장 프로그램]</strong> ➔ <strong>[Apps Script]</strong> 클릭</li>
-                        <li>기존 코드를 모두 지우고 아래 <strong>[앱스 스크립트 코드 복사]</strong> 버튼을 눌러 붙여넣기 후 저장(<kbd class="px-1 bg-slate-200 rounded">Ctrl+S</kbd>)</li>
+                        <li>기존 코드를 지우고 <strong>[Apps Script 코드 복사]</strong> 버튼을 눌러 붙여넣기 후 저장(<kbd class="px-1 bg-slate-200 rounded">Ctrl+S</kbd>)</li>
                         <li>우측 상단 <strong>[배포]</strong> ➔ <strong>[새 배포]</strong> ➔ 유형 선택: <strong>웹 앱(Web App)</strong> 설정</li>
-                        <li><strong>액세스 권한을 반드시 <span class="text-rose-600 font-bold">"모든 사용자(Anyone)"</span>로 설정</strong> 후 배포된 <code class="bg-amber-100 px-1 rounded text-amber-800">/exec</code> URL 주소를 아래에 입력!</li>
+                        <li><strong>액세스 권한을 <span class="text-rose-600 font-bold">"모든 사용자(Anyone)"</span>로 설정</strong> 후 배포된 <code class="bg-amber-100 px-1 rounded text-amber-800">/exec</code> URL 주소를 입력하세요!</li>
                     </ol>
                 </div>
 
-                <!-- Google Apps Script Code Copy Block -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="font-bold text-slate-800 text-xs">구글 시트에 적용할 스크립트 코드</label>
@@ -584,14 +647,12 @@ function formatDate(d) {
 }</pre>
                 </div>
 
-                <!-- Web App URL Input field -->
                 <div class="space-y-1.5 pt-1">
                     <label class="block font-bold text-slate-800 text-xs">배포된 Web App URL 주소 입력 <span class="text-rose-500">*</span></label>
                     <input type="url" id="sheetScriptUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" 
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none">
                 </div>
 
-                <!-- Sync Action Buttons -->
                 <div class="grid grid-cols-2 gap-2.5 pt-2">
                     <button onclick="testAndFetchGoogleSheets(true)" class="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition shadow flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-cloud-arrow-down"></i>
@@ -606,7 +667,7 @@ function formatDate(d) {
 
                 <div class="flex items-center gap-2 pt-1 text-xs text-slate-600">
                     <input type="checkbox" id="autoSyncCheck" onchange="toggleAutoSync(this)" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4">
-                    <label for="autoSyncCheck" class="cursor-pointer font-medium">재고 변경 시 구글 시트에 자동으로 실시간 저장하기</label>
+                    <label for="autoSyncCheck" class="cursor-pointer font-medium">재고 변동 발생 시 구글 시트에 즉시 자동 동기화하기</label>
                 </div>
 
             </div>
@@ -622,8 +683,8 @@ function formatDate(d) {
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <!-- Toast Notification Overlay -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none border border-slate-800">
         <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
         <span id="toastMessage" class="text-xs sm:text-sm font-medium"></span>
     </div>
@@ -653,15 +714,24 @@ function formatDate(d) {
             { id: 'INV-1009', code: 'PRD-D09', name: 'H 제품 (설치 도구함)', location: 'D9', quantity: 4, inboundDate: '2026-09-23', soldDate: '2026-09-29', notes: '수량 부족' }
         ];
 
-        // State variables
+        // Application State
         let inventoryList = [];
+        let transactionLogs = [];
         let currentFilterStatus = 'ALL';
         let currentSelectedLocation = null;
         let googleScriptUrl = '';
         let isAutoSyncEnabled = false;
+        let currentViewMode = '3d'; // '3d' or '2d'
+        let pendingDeleteId = null;
+
+        // Three.js State Variables
+        let scene, camera, renderer, controls;
+        let rackMeshMap = {}; // Key: location (e.g., 'A1'), Value: Three.Group / Mesh
+        let raycaster, mouse;
+        let hoveredLocation = null;
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Populate Location Select Options
+            // Populate Location Select Options (A1 ~ D10)
             const locationSelect = document.getElementById('formLocation');
             locationSelect.innerHTML = '';
             ALL_RACK_LOCATIONS.forEach(loc => {
@@ -684,6 +754,12 @@ function formatDate(d) {
                 saveToLocalStorage();
             }
 
+            // Load Logs
+            const savedLogs = localStorage.getItem('app_rack_logs');
+            if (savedLogs) {
+                try { transactionLogs = JSON.parse(savedLogs); } catch(e) { transactionLogs = []; }
+            }
+
             googleScriptUrl = localStorage.getItem('app_google_script_url') || '';
             if (googleScriptUrl) {
                 document.getElementById('sheetScriptUrl').value = googleScriptUrl;
@@ -697,25 +773,335 @@ function formatDate(d) {
             document.getElementById('formInboundDate').value = today;
             document.getElementById('sellDateInput').value = today;
 
+            // Initialize Three.js 3D Warehouse Environment
+            initThreeJS();
+
             renderDashboard();
         });
 
         function saveToLocalStorage() {
             localStorage.setItem('app_rack_inventory', JSON.stringify(inventoryList));
+            localStorage.setItem('app_rack_logs', JSON.stringify(transactionLogs));
             if (isAutoSyncEnabled && googleScriptUrl) {
                 pushToGoogleSheets(false);
             }
         }
 
-        function toggleAutoSync(chk) {
-            isAutoSyncEnabled = chk.checked;
-            localStorage.setItem('app_auto_sync', isAutoSyncEnabled ? 'true' : 'false');
-            if (isAutoSyncEnabled) {
-                showToast('실시간 자동 동기화가 활성화되었습니다.');
+        function addLog(type, details) {
+            const time = new Date().toLocaleString('ko-KR');
+            transactionLogs.unshift({ type, details, time });
+            if (transactionLogs.length > 50) transactionLogs.pop();
+            localStorage.setItem('app_rack_logs', JSON.stringify(transactionLogs));
+        }
+
+        function initThreeJS() {
+            const container = document.getElementById('threeCanvasContainer');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+            scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(0, 18, 32);
+
+            // Renderer setup - fixed powerPreference enum value from 'highPerformance' to 'high-performance'
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // OrbitControls setup for full mouse/touch rotation
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01; // Prevents camera going below floor
+            controls.minDistance = 8;
+            controls.maxDistance = 65;
+            controls.target.set(0, 6, 0);
+
+            // Lighting setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x38bdf8, 1.2, 50);
+            pointLight.position.set(0, 25, 0);
+            scene.add(pointLight);
+
+            // Floor Grid & Ground Plane
+            const gridHelper = new THREE.GridHelper(50, 50, 0x0284c7, 0x1e293b);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+
+            const floorGeo = new THREE.PlaneGeometry(60, 60);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8, metalness: 0.2 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Build Metallic Rack Structure (4 Tiers x 10 Cols)
+            build3DRackStructure();
+
+            // Raycaster setup for hover & click detection
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Event Listeners for 3D Interactions
+            renderer.domElement.addEventListener('mousemove', onThreeMouseMove, false);
+            renderer.domElement.addEventListener('click', onThreeMouseClick, false);
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Start Animation Loop
+            animateThreeJS();
+        }
+
+        function build3DRackStructure() {
+            // Structural Constants
+            const cols = 10;
+            const colWidth = 2.4;
+            const startX = -((cols - 1) * colWidth) / 2; // Center horizontally
+            
+            const rowHeights = { 'D': 1.2, 'C': 4.2, 'B': 7.2, 'A': 10.2 }; // Y positions
+            const rackDepth = 2.0;
+
+            // Materials
+            const steelMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+            const beamMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.4 });
+
+            // Create Vertical Metallic Pillars
+            for (let c = 0; c <= cols; c++) {
+                const posX = startX - (colWidth / 2) + (c * colWidth);
+                
+                // Front and Back Pillars
+                [-rackDepth/2, rackDepth/2].forEach(posZ => {
+                    const pillarGeo = new THREE.BoxGeometry(0.2, 12.5, 0.2);
+                    const pillar = new THREE.Mesh(pillarGeo, steelMat);
+                    pillar.position.set(posX, 6.25, posZ);
+                    pillar.castShadow = true;
+                    scene.add(pillar);
+                });
+            }
+
+            // Create Shelf Beam Planes and Slot Placeholders
+            RACK_ROWS.forEach(r => {
+                const y = rowHeights[r];
+
+                // Horizontal Shelf Beams
+                const shelfGeo = new THREE.BoxGeometry(cols * colWidth, 0.15, rackDepth);
+                const shelf = new THREE.Mesh(shelfGeo, beamMat);
+                shelf.position.set(0, y - 0.5, 0);
+                shelf.receiveShadow = true;
+                scene.add(shelf);
+
+                // Slot Placeholder Nodes (A1 ~ D10)
+                RACK_COLS.forEach((c, idx) => {
+                    const slotLoc = `${r}${c}`;
+                    const posX = startX + (idx * colWidth);
+                    
+                    const slotGroup = new THREE.Group();
+                    slotGroup.position.set(posX, y, 0);
+                    slotGroup.userData = { location: slotLoc };
+
+                    scene.add(slotGroup);
+                    rackMeshMap[slotLoc] = slotGroup;
+                });
+            });
+        }
+
+        function update3DInventoryMeshes() {
+            if (!scene) return;
+
+            // Location Mapping
+            const locMap = {};
+            inventoryList.forEach(item => {
+                const loc = (item.location || '').toUpperCase();
+                if (!locMap[loc]) locMap[loc] = [];
+                locMap[loc].push(item);
+            });
+
+            ALL_RACK_LOCATIONS.forEach(loc => {
+                const group = rackMeshMap[loc];
+                if (!group) return;
+
+                // Clear previous box meshes in this slot group
+                while(group.children.length > 0){ 
+                    const obj = group.children.pop();
+                    if(obj.geometry) obj.geometry.dispose();
+                    if(obj.material) {
+                        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                        else obj.material.dispose();
+                    }
+                }
+
+                const items = locMap[loc] || [];
+                const totalQty = items.reduce((acc, curr) => acc + Number(curr.quantity), 0);
+                const isSelected = currentSelectedLocation === loc;
+
+                // Box geometry base
+                const boxGeo = new THREE.BoxGeometry(1.8, 1.8, 1.6);
+
+                let boxMat;
+                if (items.length === 0) {
+                    // Empty Rack Slot - Subtle Wireframe/Ghost Box
+                    boxMat = new THREE.MeshBasicMaterial({ color: isSelected ? 0x38bdf8 : 0x334155, wireframe: true, transparent: true, opacity: isSelected ? 0.8 : 0.2 });
+                } else if (totalQty === 0) {
+                    // Out of Stock - Red Glowing Wireframe Box
+                    boxMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.3, metalness: 0.5, wireframe: true });
+                } else if (totalQty <= 5) {
+                    // Low Stock - Amber Color Box
+                    boxMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4, metalness: 0.3 });
+                } else {
+                    // Normal Stock - Emerald Green Box
+                    boxMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.4, metalness: 0.3 });
+                }
+
+                const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+                boxMesh.castShadow = true;
+                boxMesh.receiveShadow = true;
+                boxMesh.userData = { location: loc, items, totalQty };
+
+                // If selected, add highlight ring outline
+                if (isSelected) {
+                    const outlineGeo = new THREE.BoxGeometry(2.0, 2.0, 1.8);
+                    const outlineMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true });
+                    const outline = new THREE.Mesh(outlineGeo, outlineMat);
+                    boxMesh.add(outline);
+                }
+
+                group.add(boxMesh);
+            });
+        }
+
+        function onThreeMouseMove(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // Collect all box meshes inside slot groups
+            const clickableObjects = [];
+            Object.values(rackMeshMap).forEach(g => {
+                if (g.children.length > 0) clickableObjects.push(g.children[0]);
+            });
+
+            const intersects = raycaster.intersectObjects(clickableObjects);
+            const tooltip = document.getElementById('threeTooltip');
+
+            if (intersects.length > 0) {
+                const hitObj = intersects[0].object;
+                const loc = hitObj.userData.location;
+                const items = hitObj.userData.items || [];
+                const totalQty = hitObj.userData.totalQty || 0;
+
+                hoveredLocation = loc;
+                document.body.style.cursor = 'pointer';
+
+                // Display Tooltip Positioned near cursor
+                tooltip.classList.remove('hidden');
+                tooltip.style.left = `${event.clientX - rect.left + 15}px`;
+                tooltip.style.top = `${event.clientY - rect.top - 10}px`;
+
+                document.getElementById('tooltipLoc').textContent = `[${loc}] 슬롯`;
+                if (items.length > 0) {
+                    document.getElementById('tooltipName').textContent = items[0].name;
+                    document.getElementById('tooltipQty').textContent = `보유 수량: ${totalQty}개`;
+                } else {
+                    document.getElementById('tooltipName').textContent = '빈 슬롯';
+                    document.getElementById('tooltipQty').textContent = '클릭 시 입고 등록';
+                }
+            } else {
+                hoveredLocation = null;
+                document.body.style.cursor = 'default';
+                tooltip.classList.add('hidden');
             }
         }
 
-        function renderVisualRack() {
+        function onThreeMouseClick() {
+            if (hoveredLocation) {
+                handleRackCellClick(hoveredLocation);
+            }
+        }
+
+        function animateThreeJS() {
+            requestAnimationFrame(animateThreeJS);
+            if (controls) controls.update();
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('threeCanvasContainer');
+            if (!container || !renderer || !camera) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        // Camera Preset Controls
+        function setCameraView(viewType) {
+            if (!camera || !controls) return;
+
+            if (viewType === 'iso') {
+                camera.position.set(0, 18, 32);
+                controls.target.set(0, 6, 0);
+            } else if (viewType === 'front') {
+                camera.position.set(0, 6, 32);
+                controls.target.set(0, 6, 0);
+            } else if (viewType === 'top') {
+                camera.position.set(0, 42, 1);
+                controls.target.set(0, 0, 0);
+            }
+            controls.update();
+        }
+
+        function resetCameraView() {
+            setCameraView('iso');
+            showToast('3D 시점이 초기화되었습니다.', 'info');
+        }
+
+        function toggleViewMode(mode) {
+            currentViewMode = mode;
+            const threeSec = document.getElementById('threeViewSection');
+            const twoSec = document.getElementById('twoViewSection');
+            const btn3D = document.getElementById('btnView3D');
+            const btn2D = document.getElementById('btnView2D');
+
+            if (mode === '3d') {
+                threeSec.classList.remove('hidden');
+                twoSec.classList.add('hidden');
+                btn3D.className = "flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold transition shadow-sm";
+                btn2D.className = "flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition shadow-sm";
+                onWindowResize();
+                showToast('3D 인터랙티브 입체 뷰어가 활성화되었습니다.');
+            } else {
+                threeSec.classList.add('hidden');
+                twoSec.classList.remove('hidden');
+                btn2D.className = "flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold transition shadow-sm";
+                btn3D.className = "flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition shadow-sm";
+                showToast('2D 그리드 평면 뷰어로 전환되었습니다.');
+            }
+        }
+
+        function renderVisualRack2D() {
             const rows = {
                 'A': document.getElementById('rackRowA'),
                 'B': document.getElementById('rackRowB'),
@@ -743,31 +1129,31 @@ function formatDate(d) {
                     const totalQty = itemsInCell.reduce((acc, curr) => acc + Number(curr.quantity), 0);
                     const isSelected = currentSelectedLocation === cellLoc;
 
-                    // Color status calculation
-                    let bgClass = "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500";
+                    let bgClass = "bg-slate-900/90 border-slate-700/80 text-slate-500 hover:border-slate-500";
                     let statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>`;
 
                     if (itemsInCell.length > 0) {
                         if (totalQty === 0) {
-                            bgClass = "bg-rose-950/50 border-rose-800/80 text-rose-300 hover:border-rose-500";
-                            statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>`;
+                            bgClass = "bg-rose-950/60 border-rose-800/90 text-rose-300 hover:border-rose-500";
+                            statusDot = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-subtle-pulse"></span>`;
                         } else if (totalQty <= 5) {
-                            bgClass = "bg-amber-950/50 border-amber-700/80 text-amber-200 hover:border-amber-400";
-                            statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>`;
+                            bgClass = "bg-amber-950/60 border-amber-700/90 text-amber-200 hover:border-amber-400";
+                            statusDot = `<span class="w-2 h-2 rounded-full bg-amber-400"></span>`;
                         } else {
-                            bgClass = "bg-emerald-950/40 border-emerald-700/80 text-emerald-200 hover:border-emerald-400";
-                            statusDot = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>`;
+                            bgClass = "bg-emerald-950/60 border-emerald-700/90 text-emerald-200 hover:border-emerald-400";
+                            statusDot = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span>`;
                         }
                     }
 
                     if (isSelected) {
-                        bgClass += " ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900 scale-105 z-20";
+                        bgClass += " ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-950 scale-105 z-20 bg-blue-950/80";
                     }
 
+                    const itemName = itemsInCell.length > 0 ? itemsInCell[0].name : '';
                     const cellHtml = `
                         <button onclick="handleRackCellClick('${cellLoc}')" 
-                                title="${cellLoc} 위치 - ${itemsInCell.length > 0 ? itemsInCell[0].name + ' 등 (' + totalQty + '개)' : '비어있음 (클릭하여 입고)'}"
-                                class="rack-cell ${bgClass} border rounded-lg p-1.5 flex flex-col justify-between items-center text-center h-16 relative overflow-hidden group">
+                                title="${cellLoc} 슬롯 - ${itemsInCell.length > 0 ? escapeHtml(itemName) + ' (' + totalQty + '개)' : '빈 위치 (클릭 시 신규 입고)'}"
+                                class="rack-cell ${bgClass} border rounded-lg p-1.5 flex flex-col justify-between items-center text-center h-16 relative overflow-hidden group cursor-pointer shadow-inner">
                             <div class="flex items-center justify-between w-full text-[10px] font-mono font-bold">
                                 <span class="text-slate-300">${cellLoc}</span>
                                 ${statusDot}
@@ -776,12 +1162,12 @@ function formatDate(d) {
                                 ${itemsInCell.length > 0 ? `
                                     <span class="text-xs font-black font-mono tracking-tight">${totalQty}<span class="text-[9px] font-normal opacity-70">개</span></span>
                                 ` : `
-                                    <span class="text-[10px] text-slate-600 group-hover:text-slate-400 transition">+입고</span>
+                                    <span class="text-[10px] text-slate-500 group-hover:text-blue-400 transition font-mono">+입고</span>
                                 `}
                             </div>
                             ${itemsInCell.length > 0 ? `
-                                <div class="text-[9px] truncate w-full font-sans opacity-80 scale-90">
-                                    ${escapeHtml(itemsInCell[0].name)}
+                                <div class="text-[9px] truncate w-full font-sans opacity-85 scale-90">
+                                    ${escapeHtml(itemName)}
                                 </div>
                             ` : ''}
                         </button>
@@ -796,25 +1182,67 @@ function formatDate(d) {
             if (currentSelectedLocation === locCode) {
                 currentSelectedLocation = null;
                 document.getElementById('searchInput').value = '';
-                showToast('위치 필터가 해제되었습니다.', 'info');
+                showToast('위치 선택 필터가 해제되었습니다.', 'info');
             } else {
                 currentSelectedLocation = locCode;
                 document.getElementById('searchInput').value = locCode;
                 
-                const hasItem = inventoryList.some(i => i.location.toUpperCase() === locCode);
-                if (!hasItem) {
-                    showToast(`'${locCode}' 위치는 비어 있습니다. [신규 재고 입고] 버튼을 누르면 해당 위치로 신규 등록됩니다.`, 'info');
+                const existingItems = inventoryList.filter(i => (i.location || '').toUpperCase() === locCode);
+                if (existingItems.length === 0) {
+                    showToast(`'${locCode}' 위치는 비어 있습니다. [신규 입고] 버튼으로 신규 재고를 등록할 수 있습니다.`, 'info');
                 } else {
-                    showToast(`'${locCode}' 위치 재고만 조회 중입니다.`, 'info');
+                    showToast(`'${locCode}' 슬롯 재고 항목을 필터링합니다.`, 'info');
                 }
             }
             renderDashboard();
         }
 
+        function resetFilters() {
+            currentSelectedLocation = null;
+            document.getElementById('searchInput').value = '';
+            currentFilterStatus = 'ALL';
+            updateFilterButtonsUI();
+            renderDashboard();
+            showToast('모든 검색 및 위치 필터가 초기화되었습니다.');
+        }
+
+        function handleSearch() {
+            renderDashboard();
+        }
+
+        function setFilterStatus(status) {
+            currentFilterStatus = status;
+            updateFilterButtonsUI();
+            renderDashboard();
+        }
+
+        function updateFilterButtonsUI() {
+            const btnAll = document.getElementById('filterBtnAll');
+            const btnInStock = document.getElementById('filterBtnInStock');
+            const btnLow = document.getElementById('filterBtnLow');
+            const btnEmpty = document.getElementById('filterBtnEmpty');
+
+            const inactiveClass = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap";
+            const activeClass = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition whitespace-nowrap shadow-sm";
+
+            btnAll.className = currentFilterStatus === 'ALL' ? activeClass : inactiveClass;
+            btnInStock.className = currentFilterStatus === 'IN_STOCK' ? activeClass : inactiveClass;
+            btnLow.className = currentFilterStatus === 'LOW' ? activeClass : inactiveClass;
+            btnEmpty.className = currentFilterStatus === 'EMPTY' ? activeClass : inactiveClass;
+        }
+
         function renderDashboard() {
             renderMetrics();
-            renderVisualRack();
+            update3DInventoryMeshes();
+            renderVisualRack2D();
             renderTable();
+
+            // Indicators update
+            const ind3D = document.getElementById('selectedSlotIndicator3D');
+            const ind2D = document.getElementById('selectedSlotIndicator2D');
+            const txt = currentSelectedLocation ? `선택 위치: [${currentSelectedLocation}] 슬롯` : `선택: 전체 랙 보는 중`;
+            if (ind3D) ind3D.textContent = txt;
+            if (ind2D) ind2D.textContent = txt;
         }
 
         function renderMetrics() {
@@ -823,7 +1251,7 @@ function formatDate(d) {
             const lowStockCount = inventoryList.filter(item => item.quantity > 0 && item.quantity <= 5).length;
             const soldCount = inventoryList.filter(item => item.soldDate && item.soldDate !== '-').length;
 
-            const occupiedSlotsSet = new Set(inventoryList.map(i => i.location.toUpperCase()));
+            const occupiedSlotsSet = new Set(inventoryList.map(i => (i.location || '').toUpperCase()));
             const occupiedCount = occupiedSlotsSet.size;
             const occupancyRate = Math.round((occupiedCount / ALL_RACK_LOCATIONS.length) * 100);
 
@@ -841,9 +1269,9 @@ function formatDate(d) {
 
             let filtered = inventoryList.filter(item => {
                 const matchesSearch = 
-                    item.name.toLowerCase().includes(searchKeyword) ||
-                    (item.code && item.code.toLowerCase().includes(searchKeyword)) ||
-                    item.location.toLowerCase().includes(searchKeyword);
+                    (item.name || '').toLowerCase().includes(searchKeyword) ||
+                    (item.code || '').toLowerCase().includes(searchKeyword) ||
+                    (item.location || '').toLowerCase().includes(searchKeyword);
 
                 let matchesStatus = true;
                 if (currentFilterStatus === 'IN_STOCK') {
@@ -858,6 +1286,7 @@ function formatDate(d) {
             });
 
             tableBody.innerHTML = '';
+            document.getElementById('displayedCount').textContent = filtered.length;
 
             if (filtered.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -884,7 +1313,7 @@ function formatDate(d) {
                     <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                         <td class="p-3.5 whitespace-nowrap">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black font-mono bg-slate-900 text-blue-300 border border-slate-700 shadow-sm">
-                                <i class="fa-solid fa-location-dot text-blue-400 mr-1.5"></i> ${escapeHtml(item.location.toUpperCase())}
+                                <i class="fa-solid fa-location-dot text-blue-400 mr-1.5"></i> ${(item.location || '').toUpperCase()}
                             </span>
                         </td>
                         <td class="p-3.5">
@@ -916,10 +1345,10 @@ function formatDate(d) {
                                     <i class="fa-solid fa-cart-shopping"></i> 판매
                                 </button>
                                 <button onclick="openEditModal('${item.id}')" title="수정" 
-                                        class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                                        class="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
-                                <button onclick="askDeleteProduct('${item.id}')" title="삭제" 
+                                <button onclick="confirmDelete('${item.id}')" title="삭제" 
                                         class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
@@ -927,83 +1356,44 @@ function formatDate(d) {
                         </td>
                     </tr>
                 `;
+
                 tableBody.innerHTML += rowHtml;
             });
-
-            document.getElementById('displayedCount').textContent = filtered.length;
-        }
-
-        function handleSearch() {
-            const inputVal = document.getElementById('searchInput').value.trim().toUpperCase();
-            if (ALL_RACK_LOCATIONS.includes(inputVal)) {
-                currentSelectedLocation = inputVal;
-            } else {
-                currentSelectedLocation = null;
-            }
-            renderDashboard();
-        }
-
-        function setFilterStatus(status) {
-            currentFilterStatus = status;
-
-            const btns = {
-                'ALL': 'filterBtnAll',
-                'IN_STOCK': 'filterBtnInStock',
-                'LOW': 'filterBtnLow',
-                'EMPTY': 'filterBtnEmpty'
-            };
-
-            Object.keys(btns).forEach(k => {
-                const b = document.getElementById(btns[k]);
-                if (k === status) {
-                    b.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white transition whitespace-nowrap shadow-sm";
-                } else {
-                    b.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition whitespace-nowrap";
-                }
-            });
-
-            renderTable();
-        }
-
-        function resetFilters() {
-            document.getElementById('searchInput').value = '';
-            currentSelectedLocation = null;
-            setFilterStatus('ALL');
-            showToast('모든 검색 필터가 초기화되었습니다.', 'info');
         }
 
         function openAddModal() {
-            document.getElementById('inventoryForm').reset();
+            document.getElementById('modalTitle').textContent = "신규 재고 등록 / 입고";
             document.getElementById('formProductId').value = '';
-            document.getElementById('modalTitle').textContent = '신규 재고 등록 / 입고';
-            
+            document.getElementById('inventoryForm').reset();
+
             if (currentSelectedLocation) {
                 document.getElementById('formLocation').value = currentSelectedLocation;
-            } else {
-                document.getElementById('formLocation').value = 'A1';
             }
 
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('formInboundDate').value = today;
+
             document.getElementById('addModal').classList.remove('hidden');
         }
 
-        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
-
         function openEditModal(id) {
-            const item = inventoryList.find(p => p.id === id);
+            const item = inventoryList.find(i => i.id === id);
             if (!item) return;
 
+            document.getElementById('modalTitle').textContent = "재고 항목 정보 수정";
             document.getElementById('formProductId').value = item.id;
-            document.getElementById('formProductName').value = item.name;
+            document.getElementById('formProductName').value = item.name || '';
             document.getElementById('formProductCode').value = item.code || '';
-            document.getElementById('formLocation').value = item.location.toUpperCase();
+            document.getElementById('formLocation').value = (item.location || 'A1').toUpperCase();
             document.getElementById('formQuantity').value = item.quantity;
-            document.getElementById('formInboundDate').value = item.inboundDate;
+            document.getElementById('formInboundDate').value = item.inboundDate || new Date().toISOString().split('T')[0];
             document.getElementById('formNotes').value = item.notes || '';
 
-            document.getElementById('modalTitle').textContent = '재고 정보 수정';
             document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
         }
 
         function handleFormSubmit(e) {
@@ -1012,35 +1402,31 @@ function formatDate(d) {
             const id = document.getElementById('formProductId').value;
             const name = document.getElementById('formProductName').value.trim();
             const code = document.getElementById('formProductCode').value.trim();
-            const location = document.getElementById('formLocation').value.toUpperCase();
+            const location = document.getElementById('formLocation').value;
             const quantity = parseInt(document.getElementById('formQuantity').value, 10);
             const inboundDate = document.getElementById('formInboundDate').value;
             const notes = document.getElementById('formNotes').value.trim();
 
             if (id) {
-                const target = inventoryList.find(p => p.id === id);
-                if (target) {
-                    target.name = name;
-                    target.code = code;
-                    target.location = location;
-                    target.quantity = quantity;
-                    target.inboundDate = inboundDate;
-                    target.notes = notes;
+                const index = inventoryList.findIndex(i => i.id === id);
+                if (index !== -1) {
+                    inventoryList[index] = {
+                        ...inventoryList[index],
+                        name, code, location, quantity, inboundDate, notes
+                    };
+                    addLog('수정', `'${name}' (${location} 위치) 정보를 수정했습니다.`);
                     showToast('재고 정보가 수정되었습니다.');
                 }
             } else {
+                const newId = 'INV-' + (Math.floor(Math.random() * 8999) + 1000);
                 const newItem = {
-                    id: 'INV-' + Date.now().toString().slice(-5),
-                    code: code || ('PRD-' + location + '-' + Math.floor(100 + Math.random() * 900)),
-                    name: name,
-                    location: location,
-                    quantity: quantity,
-                    inboundDate: inboundDate,
-                    soldDate: null,
-                    notes: notes
+                    id: newId,
+                    name, code, location, quantity,
+                    inboundDate, soldDate: null, notes
                 };
                 inventoryList.unshift(newItem);
-                showToast(`'${name}' 제품이 랙 [${location}] 위치에 저장되었습니다.`);
+                addLog('입고', `'${name}' ${quantity}개 입고 완료 (${location} 위치)`);
+                showToast(`'${name}' 신규 재고가 ${location} 위치에 등록되었습니다.`);
             }
 
             saveToLocalStorage();
@@ -1049,101 +1435,234 @@ function formatDate(d) {
         }
 
         function openSellModal(id) {
-            const item = inventoryList.find(p => p.id === id);
+            const item = inventoryList.find(i => i.id === id);
             if (!item) return;
 
             if (item.quantity <= 0) {
-                showToast('잔여 수량이 0인 품목입니다.', 'warning');
+                showToast('잔여 수량이 없는 품목입니다.', 'error');
                 return;
             }
 
             document.getElementById('sellProductId').value = item.id;
             document.getElementById('sellTargetName').textContent = item.name;
-            document.getElementById('sellTargetLoc').textContent = item.location.toUpperCase();
+            document.getElementById('sellTargetLoc').textContent = `${item.location} 슬롯`;
             document.getElementById('sellTargetCurrentQty').textContent = `${item.quantity} 개`;
-            document.getElementById('sellQtyInput').value = 1;
+
+            document.getElementById('sellQtyInput').value = '1';
             document.getElementById('sellQtyInput').max = item.quantity;
+            document.getElementById('sellNoteInput').value = '';
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('sellDateInput').value = today;
 
             document.getElementById('sellModal').classList.remove('hidden');
         }
 
-        function closeSellModal() { document.getElementById('sellModal').classList.add('hidden'); }
+        function closeSellModal() {
+            document.getElementById('sellModal').classList.add('hidden');
+        }
 
         function handleSellSubmit(e) {
             e.preventDefault();
 
             const id = document.getElementById('sellProductId').value;
-            const sellQty = parseInt(document.getElementById('sellQtyInput').value, 10);
+            const qtyToSell = parseInt(document.getElementById('sellQtyInput').value, 10);
             const sellDate = document.getElementById('sellDateInput').value;
-            const sellNote = document.getElementById('sellNoteInput').value.trim();
+            const note = document.getElementById('sellNoteInput').value.trim();
 
-            const item = inventoryList.find(p => p.id === id);
-            if (!item) return;
+            const index = inventoryList.findIndex(i => i.id === id);
+            if (index === -1) return;
 
-            if (sellQty > item.quantity) {
-                showToast('판매 수량이 현재 잔여 수량보다 큽니다.', 'error');
+            const current = inventoryList[index];
+            if (qtyToSell > current.quantity) {
+                showToast('보유 수량보다 많은 양을 출고할 수 없습니다.', 'error');
                 return;
             }
 
-            item.quantity -= sellQty;
-            item.soldDate = sellDate;
-            if (sellNote) {
-                item.notes = (item.notes ? item.notes + ' | ' : '') + `[출고 ${sellDate}]: ${sellNote}`;
+            current.quantity -= qtyToSell;
+            current.soldDate = sellDate;
+            if (note) {
+                current.notes = current.notes ? `${current.notes} | ${note}` : note;
             }
+
+            addLog('출고', `'${current.name}' ${qtyToSell}개 출고 처리 완료 (잔여: ${current.quantity}개)`);
+            showToast(`'${current.name}' ${qtyToSell}개 출고 완료되었습니다.`);
 
             saveToLocalStorage();
             renderDashboard();
             closeSellModal();
-            showToast(`'${item.name}' ${sellQty}개 출고 완결 처리되었습니다.`);
         }
 
-        let pendingDeleteId = null;
-
-        function askDeleteProduct(id) {
-            const item = inventoryList.find(p => p.id === id);
+        function confirmDelete(id) {
+            const item = inventoryList.find(i => i.id === id);
             if (!item) return;
 
             pendingDeleteId = id;
-            document.getElementById('confirmTitle').textContent = '재고 품목 삭제';
-            document.getElementById('confirmMessage').textContent = `'${item.name}' (${item.location} 위치) 데이터를 삭제하시겠습니까?`;
+            document.getElementById('confirmTitle').textContent = "재고 항목 삭제";
+            document.getElementById('confirmMessage').textContent = `'${item.name}' (${item.location} 위치) 항목을 삭제하시겠습니까?`;
 
-            const modal = document.getElementById('confirmModal');
-            const okBtn = document.getElementById('confirmOkBtn');
-            const cancelBtn = document.getElementById('confirmCancelBtn');
+            document.getElementById('confirmCancelBtn').onclick = closeConfirmModal;
+            document.getElementById('confirmOkBtn').onclick = executeDelete;
 
-            modal.classList.remove('hidden');
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
 
-            okBtn.onclick = () => {
-                if (pendingDeleteId) {
-                    inventoryList = inventoryList.filter(p => p.id !== pendingDeleteId);
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            pendingDeleteId = null;
+        }
+
+        function executeDelete() {
+            if (!pendingDeleteId) return;
+
+            const item = inventoryList.find(i => i.id === pendingDeleteId);
+            if (item) {
+                addLog('삭제', `'${item.name}' (${item.location} 위치) 재고 항목을 삭제했습니다.`);
+            }
+
+            inventoryList = inventoryList.filter(i => i.id !== pendingDeleteId);
+            saveToLocalStorage();
+            renderDashboard();
+            closeConfirmModal();
+            showToast('항목이 성공적으로 삭제되었습니다.');
+        }
+
+        function openLogModal() {
+            const container = document.getElementById('logListContainer');
+            document.getElementById('logCount').textContent = transactionLogs.length;
+
+            if (transactionLogs.length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-center py-6">기록된 입출고 이력이 없습니다.</p>';
+            } else {
+                container.innerHTML = transactionLogs.map(log => `
+                    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                        <div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                                log.type === '입고' ? 'bg-emerald-100 text-emerald-800' :
+                                log.type === '출고' ? 'bg-purple-100 text-purple-800' :
+                                log.type === '수정' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
+                            }">${log.type}</span>
+                            <span class="ml-2 font-medium text-slate-800">${escapeHtml(log.details)}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-mono">${log.time}</span>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('logModal').classList.remove('hidden');
+        }
+
+        function closeLogModal() {
+            document.getElementById('logModal').classList.add('hidden');
+        }
+
+        function openSyncModal() {
+            document.getElementById('syncModal').classList.remove('hidden');
+        }
+
+        function closeSyncModal() {
+            document.getElementById('syncModal').classList.add('hidden');
+        }
+
+        function saveSyncConfig() {
+            googleScriptUrl = document.getElementById('sheetScriptUrl').value.trim();
+            localStorage.setItem('app_google_script_url', googleScriptUrl);
+            showToast('구글 시트 연동 설정이 저장되었습니다.');
+            closeSyncModal();
+        }
+
+        function toggleAutoSync(checkbox) {
+            isAutoSyncEnabled = checkbox.checked;
+            localStorage.setItem('app_auto_sync', isAutoSyncEnabled ? 'true' : 'false');
+            showToast(`실시간 자동 구글 시트 동기화가 ${isAutoSyncEnabled ? '활성화' : '비활성화'} 되었습니다.`, 'info');
+        }
+
+        function copyGasCode() {
+            const codeText = document.getElementById('gasCodeTemplate').innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = codeText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Apps Script 코드가 클립보드에 복사되었습니다.');
+        }
+
+        async function testAndFetchGoogleSheets(showToastMsg = true) {
+            const url = document.getElementById('sheetScriptUrl').value.trim();
+            if (!url) {
+                showToast('구글 Apps Script Web App URL을 입력하세요.', 'error');
+                return;
+            }
+
+            try {
+                if (showToastMsg) showToast('구글 시트 데이터를 동기화 중입니다...', 'info');
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (Array.isArray(data)) {
+                    inventoryList = data.map((item, idx) => ({
+                        id: item.id || `INV-${1000 + idx}`,
+                        name: item.name || '미지정 제품',
+                        code: item.code || '',
+                        location: (item.location || 'A1').toUpperCase(),
+                        quantity: Number(item.quantity) || 0,
+                        inboundDate: item.inboundDate || '',
+                        soldDate: item.soldDate || null,
+                        notes: item.notes || ''
+                    }));
+
                     saveToLocalStorage();
                     renderDashboard();
-                    showToast('품목이 성공적으로 삭제되었습니다.');
+                    if (showToastMsg) showToast(`구글 시트에서 총 ${data.length}개 항목을 불러왔습니다.`);
+                } else {
+                    showToast('올바르지 않은 시트 데이터 형식입니다.', 'error');
                 }
-                modal.classList.add('hidden');
-            };
+            } catch (err) {
+                showToast('구글 시트 동기화 실패: URL 및 권한(Anyone)을 확인하세요.', 'error');
+            }
+        }
 
-            cancelBtn.onclick = () => { modal.classList.add('hidden'); };
+        async function pushToGoogleSheets(showToastMsg = true) {
+            const url = googleScriptUrl || document.getElementById('sheetScriptUrl').value.trim();
+            if (!url) {
+                if (showToastMsg) showToast('구글 Apps Script Web App URL이 설정되지 않았습니다.', 'error');
+                return;
+            }
+
+            try {
+                if (showToastMsg) showToast('구글 시트로 데이터를 전송 중입니다...', 'info');
+                await fetch(url, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inventoryList)
+                });
+
+                if (showToastMsg) showToast('구글 시트로 실시간 저장 완료!');
+            } catch (err) {
+                if (showToastMsg) showToast('구글 시트 저장 실패', 'error');
+            }
         }
 
         function exportCSV() {
             if (inventoryList.length === 0) {
-                showToast('내보낼 데이터가 없습니다.', 'warning');
+                showToast('내보낼 데이터가 없습니다.', 'error');
                 return;
             }
 
-            let csvContent = "\uFEFF";
-            csvContent += "제품ID,제품명,제품코드,랙보관위치,잔여수량,입고일자,최근판매일,메모\n";
+            let csvContent = "\uFEFF"; // UTF-8 BOM for Excel Korean encoding
+            csvContent += "ID,제품코드,제품명,보관위치,수량,입고일자,최근출고일,비고\n";
 
             inventoryList.forEach(item => {
                 const row = [
                     `"${item.id}"`,
-                    `"${item.name.replace(/"/g, '""')}"`,
-                    `"${(item.code || '').replace(/"/g, '""')}"`,
+                    `"${item.code || ''}"`,
+                    `"${(item.name || '').replace(/"/g, '""')}"`,
                     `"${item.location}"`,
                     item.quantity,
-                    `"${item.inboundDate}"`,
-                    `"${item.soldDate || '-'}"`,
+                    `"${item.inboundDate || ''}"`,
+                    `"${item.soldDate || ''}"`,
                     `"${(item.notes || '').replace(/"/g, '""')}"`
                 ];
                 csvContent += row.join(",") + "\n";
@@ -1151,124 +1670,25 @@ function formatDate(d) {
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `창고랙_재고현황_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showToast('CSV 파일 다운로드가 완료되었습니다.');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `창고랙_재고_현황_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('CSV 재고 보고서가 다운로드되었습니다.');
         }
 
-        function refreshDashboard(btn) {
-            if (btn) {
-                const icon = btn.querySelector('i');
-                if (icon) icon.classList.add('animate-spin');
-                setTimeout(() => icon.classList.remove('animate-spin'), 500);
-            }
+        function resetSampleData() {
+            inventoryList = [...initialInventory];
+            saveToLocalStorage();
             renderDashboard();
-            showToast('화면 및 재고 데이터가 새로고침되었습니다.', 'info');
+            showToast('초기 샘플 데이터로 복원되었습니다.');
         }
 
-        function openSyncModal() { document.getElementById('syncModal').classList.remove('hidden'); }
-        function closeSyncModal() { document.getElementById('syncModal').classList.add('hidden'); }
-
-        function copyGasCode() {
-            const codeText = document.getElementById('gasCodeTemplate').innerText;
-            const tempElem = document.createElement('textarea');
-            tempElem.value = codeText;
-            document.body.appendChild(tempElem);
-            tempElem.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempElem);
-            showToast('Apps Script 코드가 클립보드에 복사되었습니다! 구글 시트 스크립트 창에 붙여넣으세요.');
-        }
-
-        function saveSyncConfig() {
-            const url = document.getElementById('sheetScriptUrl').value.trim();
-            googleScriptUrl = url;
-            localStorage.setItem('app_google_script_url', url);
-            showToast('구글 시트 연동 URL 설정이 저장되었습니다.');
-            closeSyncModal();
-        }
-
-        // Fetch data from Google Sheets (Sheets -> App)
-        async function testAndFetchGoogleSheets(showToastMsg = true) {
-            const url = document.getElementById('sheetScriptUrl').value.trim();
-            if (!url) {
-                showToast('구글 스크립트 Web App URL을 입력해 주세요.', 'warning');
-                return;
-            }
-            googleScriptUrl = url;
-            localStorage.setItem('app_google_script_url', url);
-
-            if (showToastMsg) showToast('구글 시트 데이터를 불러오는 중입니다...', 'info');
-
-            try {
-                const response = await fetch(url, { method: 'GET', redirect: 'follow' });
-                if (!response.ok) throw new Error(`HTTP 오류 상태코드: ${response.status}`);
-                const data = await response.json();
-
-                if (Array.isArray(data) && data.length > 0) {
-                    inventoryList = data.map((row, idx) => ({
-                        id: String(row.id || `INV-${Date.now()}-${idx}`),
-                        code: String(row.code || row.productCode || ''),
-                        name: String(row.name || row.productName || '미지정 제품'),
-                        location: String(row.location || 'A1').toUpperCase(),
-                        quantity: Number(row.quantity || row.qty || 0),
-                        inboundDate: row.inboundDate || new Date().toISOString().split('T')[0],
-                        soldDate: row.soldDate || null,
-                        notes: String(row.notes || '')
-                    }));
-                    
-                    // Save locally without triggering loop push
-                    localStorage.setItem('app_rack_inventory', JSON.stringify(inventoryList));
-                    renderDashboard();
-                    if (showToastMsg) showToast(`구글 시트에서 ${inventoryList.length}건의 데이터를 성공적으로 불러왔습니다.`);
-                    closeSyncModal();
-                } else if (Array.isArray(data) && data.length === 0) {
-                    showToast('구글 시트에 동기화할 재고 데이터가 비어 있습니다.', 'warning');
-                } else {
-                    throw new Error('올바르지 않은 데이터 응답 형식입니다.');
-                }
-            } catch (err) {
-                console.error('Google Sheets Fetch Error:', err);
-                showToast('구글 시트 연동 실패: URL 주소 또는 웹 앱 배포 권한(모든 사용자)을 확인하세요.', 'error');
-            }
-        }
-
-        // Push data to Google Sheets (App -> Sheets)
-        async function pushToGoogleSheets(showToastMsg = true) {
-            const url = googleScriptUrl || document.getElementById('sheetScriptUrl').value.trim();
-            if (!url) {
-                if (showToastMsg) showToast('구글 스크립트 Web App URL을 입력해 주세요.', 'warning');
-                return;
-            }
-
-            if (showToastMsg) showToast('구글 시트에 데이터를 저장하는 중입니다...', 'info');
-
-            try {
-                // Using text/plain prevents CORS preflight issues with Google Apps Script
-                const response = await fetch(url, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(inventoryList),
-                    redirect: 'follow'
-                });
-
-                if (!response.ok) throw new Error(`HTTP 오류 상태코드: ${response.status}`);
-                const resData = await response.json();
-
-                if (resData && resData.status === 'success') {
-                    if (showToastMsg) showToast('웹 대시보드의 재고가 구글 시트에 즉시 반영되었습니다!');
-                } else {
-                    throw new Error(resData.message || '저장 처리 실패');
-                }
-            } catch (err) {
-                console.error('Google Sheets Push Error:', err);
-                if (showToastMsg) showToast('구글 시트 저장 실패: 권한 설정 및 doPost 함수 포함 여부를 확인하세요.', 'error');
-            }
+        function refreshDashboard() {
+            renderDashboard();
+            showToast('대시보드가 새로고침되었습니다.');
         }
 
         function showToast(msg, type = 'success') {
@@ -1278,16 +1698,21 @@ function formatDate(d) {
 
             toastMsg.textContent = msg;
 
-            if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-lg';
-            else if (type === 'warning') toastIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-lg';
-            else if (type === 'info') toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
-            else toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
+            if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400 text-lg';
+            } else if (type === 'info') {
+                toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
+            }
 
             toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            toast.classList.add('translate-y-0', 'opacity-100');
 
             setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-            }, 3200);
+            }, 3000);
         }
 
         function escapeHtml(str) {
